@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useTranslation } from '../data/translations';
+import { useMediaQuery } from '../hooks/useMediaQuery'; // CORREÇÃO: Importe o novo hook
 
 interface SidebarProps {
   activeTab: string;
@@ -24,6 +25,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClose }) => {
   const { state, dispatch } = useApp();
   const t = useTranslation(state.user?.preferences.language);
+  const isDesktop = useMediaQuery('(min-width: 1024px)'); // CORREÇÃO: Detecta se a tela é grande (lg)
 
   const menuItems = [
     { id: 'dashboard', icon: Home, label: t('dashboard') },
@@ -43,7 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen
   return (
     <>
       {/* Mobile overlay */}
-      {isOpen && (
+      {isOpen && !isDesktop && ( // CORREÇÃO: O overlay só aparece em telas móveis
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -55,10 +57,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen
 
       {/* Sidebar */}
       <motion.div
-        initial={{ x: -280 }}
-        animate={{ x: isOpen ? 0 : -280 }}
+        initial={false} // Evita animação inicial desnecessária
+        // CORREÇÃO 1: A animação 'x' agora só se aplica se NÃO for desktop
+        animate={{ x: isDesktop ? 0 : (isOpen ? 0 : -280) }} 
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="fixed left-0 top-0 z-50 h-full w-70 bg-gray-900 border-r border-gray-700 lg:relative lg:translate-x-0 lg:z-auto"
+        // CORREÇÃO 2: A classe 'w-70' foi trocada por 'w-72'
+        className="fixed left-0 top-0 z-50 h-full w-72 bg-gray-900 border-r border-gray-700 lg:relative lg:translate-x-0 lg:z-auto"
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
@@ -87,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4">
+          <nav className="flex-1 p-4 overflow-y-auto"> {/* Adicionado overflow para o caso de muitos itens */}
             <ul className="space-y-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;
@@ -96,11 +100,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen
                 return (
                   <li key={item.id}>
                     <motion.button
-                      whileHover={{ x: 4 }}
+                      whileHover={{ x: isDesktop ? 4 : 0 }} // Animação de hover só no desktop
                       whileTap={{ scale: 0.95 }}
                       onClick={() => {
                         onTabChange(item.id);
-                        onClose();
+                        onClose(); // Isso vai fechar a sidebar no mobile, e não tem efeito no desktop
                       }}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
                         isActive 
@@ -120,7 +124,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen
           {/* Logout button */}
           <div className="p-4 border-t border-gray-700">
             <motion.button
-              whileHover={{ x: 4 }}
+              whileHover={{ x: isDesktop ? 4 : 0 }} // Animação de hover só no desktop
               whileTap={{ scale: 0.95 }}
               onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-900/20 hover:text-red-300 transition-all duration-200"

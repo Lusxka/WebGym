@@ -23,14 +23,8 @@ export const WelcomeWizard: React.FC = () => {
   const t = useTranslation(state.user?.preferences.language);
   const totalSteps = 5;
 
-  const handleNext = () => {
-    if (step < totalSteps) setStep(step + 1);
-  };
-
-  const handlePrevious = () => {
-    if (step > 1) setStep(step - 1);
-  };
-
+  const handleNext = () => { if (step < totalSteps) setStep(step + 1); };
+  const handlePrevious = () => { if (step > 1) setStep(step - 1); };
   const handleFinish = () => {
     dispatch({
       type: 'COMPLETE_WIZARD',
@@ -42,7 +36,6 @@ export const WelcomeWizard: React.FC = () => {
       }
     });
   };
-
   const toggleWorkoutDay = (day: string) => {
     setFormData(prev => ({
       ...prev,
@@ -52,7 +45,7 @@ export const WelcomeWizard: React.FC = () => {
     }));
   };
 
-  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 
   const calcularIMC = (peso: string, altura: string) => {
     const pesoNum = parseFloat(peso.replace(",", "."));
@@ -61,192 +54,177 @@ export const WelcomeWizard: React.FC = () => {
     return pesoNum / (alturaNum * alturaNum);
   };
 
-  const formatarNumero = (valor: string) => {
-    return valor
-      .replace(/[^\d,]/g, "")
-      .replace(/(\d+)(,?)(\d{0,2}).*/, "$1$2$3");
-  };
+  const formatarNumero = (valor: string) => valor.replace(/[^\d,]/g, "").replace(/(\d+)(,?)(\d{0,2}).*/, "$1$2$3");
 
   const imc = calcularIMC(formData.weight, formData.height);
   let imcLabel = "";
   let imcColor = "bg-red-500";
-
   if (imc) {
-    if (imc < 18.5) {
-      imcLabel = "Abaixo do peso";
-      imcColor = "bg-yellow-500";
-    } else if (imc < 25) {
-      imcLabel = "Peso ideal";
-      imcColor = "bg-green-500";
-    } else if (imc < 30) {
-      imcLabel = "Sobrepeso";
-      imcColor = "bg-orange-500";
-    } else {
-      imcLabel = "Obesidade";
-      imcColor = "bg-red-600";
-    }
+    if (imc < 18.5) { imcLabel = "Abaixo do peso"; imcColor = "bg-yellow-500"; }
+    else if (imc < 25) { imcLabel = "Peso ideal"; imcColor = "bg-green-500"; }
+    else if (imc < 30) { imcLabel = "Sobrepeso"; imcColor = "bg-orange-500"; }
+    else { imcLabel = "Obesidade"; imcColor = "bg-red-600"; }
   }
 
   const renderStep = () => {
     switch (step) {
-      case 1:
-        return (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">{t('name')}</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                placeholder="Digite seu nome"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">{t('age')}</label>
-              <input
-                type="number"
-                value={formData.age}
-                onChange={(e) => setFormData(prev => ({ ...prev, age: e.target.value }))}
-                className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                placeholder="Sua idade"
-              />
-            </div>
+      case 1: return (
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">{t('name')}</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              placeholder="Digite seu nome"
+            />
           </div>
-        );
-
-      case 2:
-        return (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">{t('weight')}</label>
-              <input
-                type="text"
-                value={formData.weight}
-                onChange={(e) => setFormData(prev => ({ ...prev, weight: formatarNumero(e.target.value) }))}
-                className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                placeholder="Peso em kg (ex: 70,5)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">{t('height')}</label>
-              <input
-                type="text"
-                value={formData.height}
-                onChange={(e) => setFormData(prev => ({ ...prev, height: formatarNumero(e.target.value) }))}
-                className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                placeholder="Altura em cm (ex: 175,5)"
-              />
-            </div>
-            {imc && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6">
-                <p className="text-gray-300 text-sm mb-2">
-                  Seu IMC: <span className="font-bold">{imc.toFixed(1)}</span> - {imcLabel}
-                </p>
-                <div className="w-full h-3 bg-gray-600 rounded-full overflow-hidden">
-                  <motion.div
-                    className={`h-full ${imcColor}`}
-                    style={{ width: `${Math.min(imc, 40) * 2.5}%` }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min(imc, 40) * 2.5}%` }}
-                    transition={{ duration: 0.5 }}
-                  />
-                </div>
-              </motion.div>
-            )}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">{t('age')}</label>
+            <input
+              type="number"
+              value={formData.age}
+              onChange={(e) => setFormData(prev => ({ ...prev, age: e.target.value }))}
+              className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              placeholder="Sua idade"
+            />
           </div>
-        );
-
-      case 3:
-        return (
-          <div className="space-y-6">
-            <label className="block text-sm font-medium text-gray-300 mb-4">{t('gender')}</label>
-            <div className="grid grid-cols-2 gap-4">
-              {['male', 'female'].map((gender) => (
-                <motion.button
-                  key={gender}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setFormData(prev => ({ ...prev, gender: gender as 'male' | 'female' }))}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    formData.gender === gender
-                      ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                      : 'border-gray-600 hover:border-gray-500'
-                  }`}
-                >
-                  {t(gender)}
-                </motion.button>
-              ))}
-            </div>
+        </div>
+      );
+      case 2: return (
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">{t('weight')}</label>
+            <input
+              type="text"
+              value={formData.weight}
+              onChange={(e) => setFormData(prev => ({ ...prev, weight: formatarNumero(e.target.value) }))}
+              className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              placeholder="Peso em kg (ex: 70,5)"
+            />
           </div>
-        );
-
-      case 4:
-        return (
-          <div className="space-y-6">
-            <label className="block text-sm font-medium text-gray-300 mb-4">{t('level')}</label>
-            <div className="space-y-3">
-              {['beginner', 'intermediate', 'advanced'].map((level) => (
-                <motion.button
-                  key={level}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={() => setFormData(prev => ({ ...prev, level: level as any }))}
-                  className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
-                    formData.level === level
-                      ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                      : 'border-gray-600 hover:border-gray-500'
-                  }`}
-                >
-                  {t(level)}
-                </motion.button>
-              ))}
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">{t('height')}</label>
+            <input
+              type="text"
+              value={formData.height}
+              onChange={(e) => setFormData(prev => ({ ...prev, height: formatarNumero(e.target.value) }))}
+              className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              placeholder="Altura em cm (ex: 175,5)"
+            />
           </div>
-        );
-
-      case 5:
-        return (
-          <div className="space-y-6">
-            <label className="block text-sm font-medium text-gray-300 mb-4">{t('workoutDays')}</label>
-            <div className="grid grid-cols-2 gap-3">
-              {days.map((day) => (
-                <motion.button
-                  key={day}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => toggleWorkoutDay(day)}
-                  className={`p-3 rounded-lg border-2 text-sm transition-all ${
-                    formData.workoutDays.includes(day)
-                      ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                      : 'border-gray-600 hover:border-gray-500'
-                  }`}
-                >
-                  {t(day)}
-                </motion.button>
-              ))}
-            </div>
+          {imc && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6">
+              <p className="text-gray-300 text-sm mb-2">
+                Seu IMC: <span className="font-bold">{imc.toFixed(1)}</span> - {imcLabel}
+              </p>
+              <div className="w-full h-3 bg-gray-600 rounded-full overflow-hidden">
+                <motion.div
+                  className={`h-full ${imcColor}`}
+                  style={{ width: `${Math.min(imc, 40) * 2.5}%` }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(imc, 40) * 2.5}%` }}
+                  transition={{ duration: 0.5 }}
+                />
+              </div>
+            </motion.div>
+          )}
+        </div>
+      );
+      case 3: return (
+        <div className="space-y-6">
+          <label className="block text-sm font-medium text-gray-300 mb-4">{t('gender')}</label>
+          <div className="grid grid-cols-2 gap-4">
+            {['male','female'].map(gender => (
+              <motion.button
+                key={gender}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setFormData(prev => ({ ...prev, gender: gender as 'male'|'female' }))}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  formData.gender === gender
+                    ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                    : 'border-gray-600 hover:border-gray-500'
+                }`}
+              >
+                {t(gender)}
+              </motion.button>
+            ))}
           </div>
-        );
-
-      default:
-        return null;
+        </div>
+      );
+      case 4: return (
+        <div className="space-y-6">
+          <label className="block text-sm font-medium text-gray-300 mb-4">{t('level')}</label>
+          <div className="space-y-3">
+            {['beginner','intermediate','advanced'].map(level => (
+              <motion.button
+                key={level}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => setFormData(prev => ({ ...prev, level: level as any }))}
+                className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                  formData.level === level
+                    ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                    : 'border-gray-600 hover:border-gray-500'
+                }`}
+              >
+                {t(level)}
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      );
+      case 5: return (
+        <div className="space-y-6">
+          <label className="block text-sm font-medium text-gray-300 mb-4">{t('workoutDays')}</label>
+          <div className="grid grid-cols-2 gap-3">
+            {days.map(day => (
+              <motion.button
+                key={day}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => toggleWorkoutDay(day)}
+                className={`p-3 rounded-lg border-2 text-sm transition-all ${
+                  formData.workoutDays.includes(day)
+                    ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                    : 'border-gray-600 hover:border-gray-500'
+                }`}
+              >
+                {t(day)}
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      );
+      default: return null;
     }
   };
 
   return (
-    <motion.div
-      className="fixed inset-0 flex items-center justify-center p-4 z-50 bg-gradient-to-br from-gray-900 via-gray-800 to-black"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
-    >
-      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md">
+    <div className="fixed inset-0 flex items-center justify-center p-4 z-50 overflow-hidden">
+      {/* Smooth gradient background */}
+      <motion.div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b, #1e3a8a)', backgroundSize: '400% 400%' }}
+        animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
+        transition={{ duration: 30, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {/* Card animation only on entry */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="relative w-full max-w-md"
+      >
         <Card className="p-8 shadow-xl shadow-black/30">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-white mb-2">{t('welcomeWizard')}</h2>
             <p className="text-gray-400">{t('wizardIntro')}</p>
           </div>
+
           <div className="mb-8">
             <div className="flex justify-between mb-2">
               <span className="text-sm text-gray-400">Passo {step} de {totalSteps}</span>
@@ -261,23 +239,19 @@ export const WelcomeWizard: React.FC = () => {
               />
             </div>
           </div>
+
           <div className="mb-8">{renderStep()}</div>
+
           <div className="flex justify-between">
-            <Button variant="ghost" onClick={handlePrevious} disabled={step === 1} icon={ChevronLeft}>
-              {t('previous')}
-            </Button>
-            {step < totalSteps ? (
-              <Button onClick={handleNext} icon={ChevronRight}>
-                {t('next')}
-              </Button>
+            <Button variant="ghost" onClick={handlePrevious} disabled={step===1} icon={ChevronLeft}>{t('previous')}</Button>
+            {step<totalSteps ? (
+              <Button onClick={handleNext} icon={ChevronRight}>{t('next')}</Button>
             ) : (
-              <Button onClick={handleFinish} icon={Check}>
-                {t('finish')}
-              </Button>
+              <Button onClick={handleFinish} icon={Check}>{t('finish')}</Button>
             )}
           </div>
         </Card>
       </motion.div>
-    </motion.div>
+    </div>
   );
 };

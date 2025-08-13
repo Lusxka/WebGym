@@ -10,7 +10,7 @@ import { WaterTab } from '../components/tabs/WaterTab';
 import { SettingsTab } from '../components/tabs/SettingsTab';
 import { IntensiveModeTab } from '../components/tabs/IntensiveModeTab';
 import { FriendsTab } from '../components/tabs/FriendsTab';
-import { WelcomeWizard } from './WelcomeWizard';
+import WelcomeWizard from './WelcomeWizard';
 import { Button } from '../components/Button';
 
 // ✨ DICA: Mapear os componentes de abas pode deixar o código mais limpo que um switch.

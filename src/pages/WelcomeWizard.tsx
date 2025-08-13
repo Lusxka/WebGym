@@ -24,15 +24,11 @@ export const WelcomeWizard: React.FC = () => {
   const totalSteps = 5;
 
   const handleNext = () => {
-    if (step < totalSteps) {
-      setStep(step + 1);
-    }
+    if (step < totalSteps) setStep(step + 1);
   };
 
   const handlePrevious = () => {
-    if (step > 1) {
-      setStep(step - 1);
-    }
+    if (step > 1) setStep(step - 1);
   };
 
   const handleFinish = () => {
@@ -58,7 +54,6 @@ export const WelcomeWizard: React.FC = () => {
 
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
-  // Funções IMC
   const calcularIMC = (peso: string, altura: string) => {
     const pesoNum = parseFloat(peso.replace(",", "."));
     const alturaNum = parseFloat(altura.replace(",", ".")) / 100;
@@ -98,9 +93,7 @@ export const WelcomeWizard: React.FC = () => {
         return (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                {t('name')}
-              </label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('name')}</label>
               <input
                 type="text"
                 value={formData.name}
@@ -110,9 +103,7 @@ export const WelcomeWizard: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                {t('age')}
-              </label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('age')}</label>
               <input
                 type="number"
                 value={formData.age}
@@ -128,46 +119,27 @@ export const WelcomeWizard: React.FC = () => {
         return (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                {t('weight')}
-              </label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('weight')}</label>
               <input
                 type="text"
                 value={formData.weight}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    weight: formatarNumero(e.target.value),
-                  }))
-                }
+                onChange={(e) => setFormData(prev => ({ ...prev, weight: formatarNumero(e.target.value) }))}
                 className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 placeholder="Peso em kg (ex: 70,5)"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                {t('height')}
-              </label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('height')}</label>
               <input
                 type="text"
                 value={formData.height}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    height: formatarNumero(e.target.value),
-                  }))
-                }
+                onChange={(e) => setFormData(prev => ({ ...prev, height: formatarNumero(e.target.value) }))}
                 className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 placeholder="Altura em cm (ex: 175,5)"
               />
             </div>
-
             {imc && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-6"
-              >
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6">
                 <p className="text-gray-300 text-sm mb-2">
                   Seu IMC: <span className="font-bold">{imc.toFixed(1)}</span> - {imcLabel}
                 </p>
@@ -188,27 +160,23 @@ export const WelcomeWizard: React.FC = () => {
       case 3:
         return (
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-4">
-                {t('gender')}
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                {['male', 'female'].map((gender) => (
-                  <motion.button
-                    key={gender}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setFormData(prev => ({ ...prev, gender: gender as 'male' | 'female' }))}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      formData.gender === gender
-                        ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                        : 'border-gray-600 hover:border-gray-500'
-                    }`}
-                  >
-                    {t(gender)}
-                  </motion.button>
-                ))}
-              </div>
+            <label className="block text-sm font-medium text-gray-300 mb-4">{t('gender')}</label>
+            <div className="grid grid-cols-2 gap-4">
+              {['male', 'female'].map((gender) => (
+                <motion.button
+                  key={gender}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setFormData(prev => ({ ...prev, gender: gender as 'male' | 'female' }))}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    formData.gender === gender
+                      ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                      : 'border-gray-600 hover:border-gray-500'
+                  }`}
+                >
+                  {t(gender)}
+                </motion.button>
+              ))}
             </div>
           </div>
         );
@@ -216,27 +184,23 @@ export const WelcomeWizard: React.FC = () => {
       case 4:
         return (
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-4">
-                {t('level')}
-              </label>
-              <div className="space-y-3">
-                {['beginner', 'intermediate', 'advanced'].map((level) => (
-                  <motion.button
-                    key={level}
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={() => setFormData(prev => ({ ...prev, level: level as any }))}
-                    className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
-                      formData.level === level
-                        ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                        : 'border-gray-600 hover:border-gray-500'
-                    }`}
-                  >
-                    {t(level)}
-                  </motion.button>
-                ))}
-              </div>
+            <label className="block text-sm font-medium text-gray-300 mb-4">{t('level')}</label>
+            <div className="space-y-3">
+              {['beginner', 'intermediate', 'advanced'].map((level) => (
+                <motion.button
+                  key={level}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={() => setFormData(prev => ({ ...prev, level: level as any }))}
+                  className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                    formData.level === level
+                      ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                      : 'border-gray-600 hover:border-gray-500'
+                  }`}
+                >
+                  {t(level)}
+                </motion.button>
+              ))}
             </div>
           </div>
         );
@@ -244,27 +208,23 @@ export const WelcomeWizard: React.FC = () => {
       case 5:
         return (
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-4">
-                {t('workoutDays')}
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {days.map((day) => (
-                  <motion.button
-                    key={day}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => toggleWorkoutDay(day)}
-                    className={`p-3 rounded-lg border-2 text-sm transition-all ${
-                      formData.workoutDays.includes(day)
-                        ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                        : 'border-gray-600 hover:border-gray-500'
-                    }`}
-                  >
-                    {t(day)}
-                  </motion.button>
-                ))}
-              </div>
+            <label className="block text-sm font-medium text-gray-300 mb-4">{t('workoutDays')}</label>
+            <div className="grid grid-cols-2 gap-3">
+              {days.map((day) => (
+                <motion.button
+                  key={day}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => toggleWorkoutDay(day)}
+                  className={`p-3 rounded-lg border-2 text-sm transition-all ${
+                    formData.workoutDays.includes(day)
+                      ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                      : 'border-gray-600 hover:border-gray-500'
+                  }`}
+                >
+                  {t(day)}
+                </motion.button>
+              ))}
             </div>
           </div>
         );
@@ -275,20 +235,18 @@ export const WelcomeWizard: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md"
-      >
-        <Card className="p-8">
-          {/* Header */}
+    <motion.div
+      className="fixed inset-0 flex items-center justify-center p-4 z-50 bg-gradient-to-br from-gray-900 via-gray-800 to-black"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md">
+        <Card className="p-8 shadow-xl shadow-black/30">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-white mb-2">{t('welcomeWizard')}</h2>
             <p className="text-gray-400">{t('wizardIntro')}</p>
           </div>
-
-          {/* Progress */}
           <div className="mb-8">
             <div className="flex justify-between mb-2">
               <span className="text-sm text-gray-400">Passo {step} de {totalSteps}</span>
@@ -303,23 +261,11 @@ export const WelcomeWizard: React.FC = () => {
               />
             </div>
           </div>
-
-          {/* Form */}
-          <div className="mb-8">
-            {renderStep()}
-          </div>
-
-          {/* Navigation */}
+          <div className="mb-8">{renderStep()}</div>
           <div className="flex justify-between">
-            <Button
-              variant="ghost"
-              onClick={handlePrevious}
-              disabled={step === 1}
-              icon={ChevronLeft}
-            >
+            <Button variant="ghost" onClick={handlePrevious} disabled={step === 1} icon={ChevronLeft}>
               {t('previous')}
             </Button>
-
             {step < totalSteps ? (
               <Button onClick={handleNext} icon={ChevronRight}>
                 {t('next')}
@@ -332,6 +278,6 @@ export const WelcomeWizard: React.FC = () => {
           </div>
         </Card>
       </motion.div>
-    </div>
+    </motion.div>
   );
 };

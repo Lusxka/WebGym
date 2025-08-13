@@ -41,8 +41,8 @@ export const WelcomeWizard: React.FC = () => {
       payload: {
         ...formData,
         age: parseInt(formData.age),
-        weight: parseInt(formData.weight),
-        height: parseInt(formData.height),
+        weight: parseFloat(formData.weight.replace(',', '.')),
+        height: parseFloat(formData.height.replace(',', '.')),
       }
     });
   };
@@ -57,6 +57,40 @@ export const WelcomeWizard: React.FC = () => {
   };
 
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+  // Funções IMC
+  const calcularIMC = (peso: string, altura: string) => {
+    const pesoNum = parseFloat(peso.replace(",", "."));
+    const alturaNum = parseFloat(altura.replace(",", ".")) / 100;
+    if (!pesoNum || !alturaNum) return null;
+    return pesoNum / (alturaNum * alturaNum);
+  };
+
+  const formatarNumero = (valor: string) => {
+    return valor
+      .replace(/[^\d,]/g, "")
+      .replace(/(\d+)(,?)(\d{0,2}).*/, "$1$2$3");
+  };
+
+  const imc = calcularIMC(formData.weight, formData.height);
+  let imcLabel = "";
+  let imcColor = "bg-red-500";
+
+  if (imc) {
+    if (imc < 18.5) {
+      imcLabel = "Abaixo do peso";
+      imcColor = "bg-yellow-500";
+    } else if (imc < 25) {
+      imcLabel = "Peso ideal";
+      imcColor = "bg-green-500";
+    } else if (imc < 30) {
+      imcLabel = "Sobrepeso";
+      imcColor = "bg-orange-500";
+    } else {
+      imcLabel = "Obesidade";
+      imcColor = "bg-red-600";
+    }
+  }
 
   const renderStep = () => {
     switch (step) {
@@ -98,11 +132,16 @@ export const WelcomeWizard: React.FC = () => {
                 {t('weight')}
               </label>
               <input
-                type="number"
+                type="text"
                 value={formData.weight}
-                onChange={(e) => setFormData(prev => ({ ...prev, weight: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    weight: formatarNumero(e.target.value),
+                  }))
+                }
                 className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                placeholder="Peso em kg"
+                placeholder="Peso em kg (ex: 70,5)"
               />
             </div>
             <div>
@@ -110,13 +149,39 @@ export const WelcomeWizard: React.FC = () => {
                 {t('height')}
               </label>
               <input
-                type="number"
+                type="text"
                 value={formData.height}
-                onChange={(e) => setFormData(prev => ({ ...prev, height: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    height: formatarNumero(e.target.value),
+                  }))
+                }
                 className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                placeholder="Altura em cm"
+                placeholder="Altura em cm (ex: 175,5)"
               />
             </div>
+
+            {imc && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-6"
+              >
+                <p className="text-gray-300 text-sm mb-2">
+                  Seu IMC: <span className="font-bold">{imc.toFixed(1)}</span> - {imcLabel}
+                </p>
+                <div className="w-full h-3 bg-gray-600 rounded-full overflow-hidden">
+                  <motion.div
+                    className={`h-full ${imcColor}`}
+                    style={{ width: `${Math.min(imc, 40) * 2.5}%` }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(imc, 40) * 2.5}%` }}
+                    transition={{ duration: 0.5 }}
+                  />
+                </div>
+              </motion.div>
+            )}
           </div>
         );
 

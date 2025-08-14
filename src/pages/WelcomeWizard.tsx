@@ -6,7 +6,8 @@ const WelcomeWizard = () => {
   const [formData, setFormData] = useState({
     name: '',
     age: '',
-    gender: 'male',
+    // Alteração 1: Estado inicial do sexo é uma string vazia para corresponder à opção "Selecionar"
+    gender: '',
     weight: '',
     height: '',
     bodyFat: '',
@@ -33,6 +34,8 @@ const WelcomeWizard = () => {
       case 1:
         if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
         if (!formData.age) newErrors.age = 'Idade é obrigatória';
+        // Adicionada validação para o campo sexo
+        if (!formData.gender) newErrors.gender = 'Sexo é obrigatório';
         break;
       case 2:
         if (!formData.weight) newErrors.weight = 'Peso é obrigatório';
@@ -45,6 +48,8 @@ const WelcomeWizard = () => {
         if (formData.workoutDays.length === 0) newErrors.workoutDays = 'Selecione pelo menos um dia';
         if (!formData.equipmentAccess.trim()) newErrors.equipmentAccess = 'Campo obrigatório';
         break;
+      default:
+        break;
     }
     
     setErrors(newErrors);
@@ -52,17 +57,22 @@ const WelcomeWizard = () => {
   };
 
   const handleNext = () => {
-    if (validateStep(step)) setStep(step + 1);
+    if (validateStep(step)) {
+      setStep(prevStep => prevStep + 1);
+    }
   };
 
   const handlePrevious = () => {
-    if (step > 1) setStep(step - 1);
+    if (step > 1) {
+      setStep(prevStep => prevStep - 1);
+    }
   };
 
   const handleFinish = () => {
     if (validateStep(step)) {
-      console.log('Dados:', formData);
-      alert('Formulário concluído!');
+      console.log('Dados Finais:', formData);
+      // Em um app real, você faria uma chamada de API aqui em vez de um alerta.
+      alert('Formulário concluído com sucesso!');
     }
   };
 
@@ -80,7 +90,7 @@ const WelcomeWizard = () => {
   const calculateBMI = (weight, height) => {
     const weightNum = parseFloat(weight.replace(",", "."));
     const heightNum = parseFloat(height.replace(",", ".")) / 100;
-    if (!weightNum || !heightNum) return null;
+    if (!weightNum || !heightNum || heightNum <= 0) return null;
     return weightNum / (heightNum * heightNum);
   };
 
@@ -128,11 +138,16 @@ const WelcomeWizard = () => {
                   <select
                     value={formData.gender}
                     onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
-                    className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
+                      errors.gender ? 'border-red-500' : 'border-gray-600 focus:border-blue-500'
+                    }`}
                   >
+                    {/* Alteração 2: Adicionada a opção "Selecionar" */}
+                    <option value="" disabled>Selecionar</option>
                     <option value="male">Masculino</option>
                     <option value="female">Feminino</option>
                   </select>
+                  {errors.gender && <p className="text-red-400 text-sm mt-1">{errors.gender}</p>}
                 </div>
 
                 <div>
@@ -423,10 +438,10 @@ const WelcomeWizard = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 overflow-auto">
+    <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 overflow-y-auto">
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-3xl">
-          <div className="bg-gray-800/95 rounded-2xl shadow-2xl border border-gray-700 p-6">
+          <div className="bg-gray-800/95 rounded-2xl shadow-2xl border border-gray-700 p-6 backdrop-blur-sm">
             {/* Header */}
             <div className="text-center mb-6">
               <h1 className="text-3xl font-bold text-white mb-2">Bem-vindo!</h1>
@@ -448,7 +463,7 @@ const WelcomeWizard = () => {
             </div>
 
             {/* Content */}
-            <div className="mb-6">
+            <div className="mb-6 min-h-[350px]">
               {renderStep()}
             </div>
 

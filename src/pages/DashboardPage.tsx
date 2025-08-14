@@ -14,7 +14,7 @@ import WelcomeWizard from './WelcomeWizard';
 import { Button } from '../components/Button';
 
 // ✨ DICA: Mapear os componentes de abas pode deixar o código mais limpo que um switch.
-const tabComponents: { [key: string]: React.FC } = {
+const tabComponents: { [key: string]: React.FC<any> } = {
   dashboard: DashboardTab,
   workout: WorkoutTab,
   diet: DietTab,
@@ -29,6 +29,12 @@ export const DashboardPage: React.FC = () => {
   const { state } = useApp();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Função para navegar entre abas
+  const handleNavigateToTab = (tabKey: string) => {
+    setActiveTab(tabKey);
+    setSidebarOpen(false); // Fecha a sidebar ao navegar no mobile
+  };
 
   const ActiveTabComponent = tabComponents[activeTab] || DashboardTab;
 
@@ -70,7 +76,7 @@ export const DashboardPage: React.FC = () => {
               </Button>
               <h1 className="text-2xl font-bold text-white">WebGym</h1>
             </div>
-            
+                     
             <div className="flex items-center gap-3">
               <img
                 src={state.user?.avatar || `https://ui-avatars.com/api/?name=${state.user?.name}&background=0D8ABC&color=fff`}
@@ -86,7 +92,12 @@ export const DashboardPage: React.FC = () => {
 
         {/* Área de conteúdo principal */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <ActiveTabComponent />
+          {/* Passa a função de navegação para o DashboardTab */}
+          {activeTab === 'dashboard' ? (
+            <DashboardTab onNavigate={handleNavigateToTab} />
+          ) : (
+            <ActiveTabComponent />
+          )}
         </main>
       </div>
 

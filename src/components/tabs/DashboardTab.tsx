@@ -37,7 +37,6 @@ const useTranslation = () => (key) => ({
 
 // --- Fim dos Mocks ---
 
-
 export const DashboardTab = ({ onNavigate }) => {
   const { state } = useApp();
   const t = useTranslation(state.user?.preferences.language);
@@ -61,17 +60,23 @@ export const DashboardTab = ({ onNavigate }) => {
       icon: Droplets,
       title: "Meta de Água",
       description: `Restam ${state.waterIntake.goal - state.waterIntake.consumed}ml`,
-      color: "green",
+      color: "cyan",
       tabKey: "water", // Chave para navegação
     },
     {
       icon: Zap,
-      title: "Streak Atual",
-      description: `${state.intensiveMode.consecutiveDays} dias`,
+      title: "Modo Intensivo",
+      description: `${state.intensiveMode.consecutiveDays} dias de streak`,
       color: "orange",
-      tabKey: "progress", // Chave para navegação
+      tabKey: "intensive", // Chave para navegação
     },
   ];
+
+  const handleActionClick = (tabKey) => {
+    if (onNavigate && typeof onNavigate === 'function') {
+      onNavigate(tabKey);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -132,18 +137,31 @@ export const DashboardTab = ({ onNavigate }) => {
               return (
                 <motion.div
                   key={action.title}
-                  whileHover={{ scale: 1.03 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  className={`p-5 rounded-xl border border-gray-700 bg-gray-800/50 cursor-pointer group hover:border-${action.color}-500/50 transition-colors`}
-                  onClick={() => onNavigate(action.tabKey)} // Ação de navegação
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className={`p-5 rounded-xl border border-gray-700 bg-gray-800/50 cursor-pointer group hover:border-${action.color}-500/50 transition-all duration-300 hover:bg-gray-700/50`}
+                  onClick={() => handleActionClick(action.tabKey)}
                 >
                   <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-bold text-white mb-1">{action.title}</h3>
-                      <p className={`text-sm text-${action.color}-400`}>{action.description}</p>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-white mb-1 group-hover:text-white transition-colors">
+                        {action.title}
+                      </h3>
+                      <p className={`text-sm mb-3 ${
+                        action.tabKey === 'workout' ? 'text-white' : 
+                        action.tabKey === 'water' ? 'text-blue-400' :
+                        `text-${action.color}-400`
+                      }`}>
+                        {action.description}
+                      </p>
+                      <div className="flex items-center text-xs text-gray-400 group-hover:text-gray-300 transition-colors">
+                        <span>Clique para acessar</span>
+                        <ChevronRight size={12} className="ml-1 group-hover:translate-x-1 transition-transform" />
+                      </div>
                     </div>
-                    <div className={`p-3 rounded-lg bg-${action.color}-500/10`}>
-                      <Icon size={20} className={`text-${action.color}-400`} />
+                    <div className={`p-3 rounded-lg bg-${action.color}-500/10 group-hover:bg-${action.color}-500/20 transition-colors`}>
+                      <Icon size={20} className={`text-${action.color}-400 group-hover:text-${action.color}-300 transition-colors`} />
                     </div>
                   </div>
                 </motion.div>

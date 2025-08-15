@@ -13,7 +13,6 @@ import { FriendsTab } from '../components/tabs/FriendsTab';
 import WelcomeWizard from './WelcomeWizard';
 import { Button } from '../components/Button';
 
-// ✨ DICA: Mapear os componentes de abas pode deixar o código mais limpo que um switch.
 const tabComponents: { [key: string]: React.FC<any> } = {
   dashboard: DashboardTab,
   workout: WorkoutTab,
@@ -30,28 +29,30 @@ export const DashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Função para navegar entre abas
   const handleNavigateToTab = (tabKey: string) => {
     setActiveTab(tabKey);
-    setSidebarOpen(false); // Fecha a sidebar ao navegar no mobile
+    setSidebarOpen(false);
   };
 
   const ActiveTabComponent = tabComponents[activeTab] || DashboardTab;
 
+  // Mostra um loader enquanto os dados do usuário estão sendo carregados
+  if (state.loading) {
+    return <div className="flex h-screen w-full items-center justify-center bg-gray-900 text-white">Carregando perfil...</div>;
+  }
+
   return (
     <div className="flex h-screen bg-gray-900 text-gray-100">
-      {/* MELHORIA 1: Componente Sidebar unificado */}
       <Sidebar
         activeTab={activeTab}
         onTabChange={(tab) => {
           setActiveTab(tab);
-          setSidebarOpen(false); // Fecha a sidebar ao trocar de aba no mobile
+          setSidebarOpen(false);
         }}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
 
-      {/* MELHORIA 2: Fundo de overlay para a sidebar móvel */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
@@ -60,9 +61,7 @@ export const DashboardPage: React.FC = () => {
         />
       )}
 
-      {/* Conteúdo Principal */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
         <header className="bg-gray-800 border-b border-gray-700 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -70,29 +69,28 @@ export const DashboardPage: React.FC = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden" // Mostra apenas em telas menores que 'lg'
+                className="lg:hidden"
               >
                 <Menu className="h-6 w-6 text-white" />
               </Button>
               <h1 className="text-2xl font-bold text-white">WebGym</h1>
             </div>
-                     
+            
             <div className="flex items-center gap-3">
               <img
-                src={state.user?.avatar || `https://ui-avatars.com/api/?name=${state.user?.name}&background=0D8ABC&color=fff`}
-                alt={state.user?.name}
+                // Agora usa o nome do perfil do banco de dados
+                src={state.user?.avatar_url || `https://ui-avatars.com/api/?name=${state.user?.nome}&background=0D8ABC&color=fff`}
+                alt={state.user?.nome}
                 className="w-10 h-10 rounded-full object-cover border-2 border-gray-600"
               />
               <div className="hidden sm:block">
-                <p className="text-white font-medium">{state.user?.name}</p>
+                <p className="text-white font-medium">{state.user?.nome}</p>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Área de conteúdo principal */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {/* Passa a função de navegação para o DashboardTab */}
           {activeTab === 'dashboard' ? (
             <DashboardTab onNavigate={handleNavigateToTab} />
           ) : (
@@ -101,7 +99,7 @@ export const DashboardPage: React.FC = () => {
         </main>
       </div>
 
-      {/* Wizard modal */}
+      {/* O Wizard será exibido com base no estado do AppContext */}
       {state.showWizard && <WelcomeWizard />}
     </div>
   );

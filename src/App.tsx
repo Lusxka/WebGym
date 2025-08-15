@@ -1,36 +1,60 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AppProvider, useApp } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AppProvider } from './context/AppContext'; // 1. Importe o AppProvider
 import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 
+/**
+ * Componente para gerenciar as rotas da aplicação.
+ */
 const AppRoutes: React.FC = () => {
-  const { state } = useApp();
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+        Carregando...
+      </div>
+    );
+  }
 
   return (
     <Routes>
       <Route 
         path="/login" 
-        element={!state.isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />} 
+        element={!user ? <LoginPage /> : <Navigate to="/dashboard" replace />} 
+      />
+      <Route 
+        path="/register" 
+        element={!user ? <RegisterPage /> : <Navigate to="/dashboard" replace />} 
       />
       <Route 
         path="/dashboard" 
-        element={state.isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />} 
+        element={user ? <DashboardPage /> : <Navigate to="/login" replace />} 
       />
-      <Route path="/" element={<Navigate to={state.isAuthenticated ? "/dashboard" : "/login"} />} />
+      <Route 
+        path="/" 
+        element={<Navigate to={user ? "/dashboard" : "/login"} replace />} 
+      />
     </Routes>
   );
 };
 
+/**
+ * Componente principal da aplicação.
+ */
 function App() {
   return (
-    <div className="min-h-screen bg-gray-900">
-      <AppProvider>
-        <Router>
+    <Router>
+      <AuthProvider>
+        {/* 2. Envolva as rotas com o AppProvider */}
+        <AppProvider> 
           <AppRoutes />
-        </Router>
-      </AppProvider>
-    </div>
+        </AppProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

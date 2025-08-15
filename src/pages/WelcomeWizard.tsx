@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Check, User, Scale, Target, Calendar, Heart } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, User, Scale, Target, Calendar, Heart, Download, Copy } from 'lucide-react';
 
 const WelcomeWizard = () => {
   const [step, setStep] = useState(1);
+  const [showJsonModal, setShowJsonModal] = useState(false);
+  const [generatedJson, setGeneratedJson] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     age: '',
-    // Alteração 1: Estado inicial do sexo é uma string vazia para corresponder à opção "Selecionar"
     gender: '',
     weight: '',
     height: '',
@@ -27,6 +28,75 @@ const WelcomeWizard = () => {
   const [errors, setErrors] = useState({});
   const totalSteps = 6;
 
+  // Função para calcular IMC
+  const calculateBMI = (weight, height) => {
+    const weightNum = parseFloat(weight.replace(",", "."));
+    const heightNum = parseFloat(height.replace(",", ".")) / 100;
+    if (!weightNum || !heightNum || heightNum <= 0) return null;
+    return weightNum / (heightNum * heightNum);
+  };
+
+  // Função para gerar JSON estruturado
+  const generateUserProfile = () => {
+    const bmi = calculateBMI(formData.weight, formData.height);
+    let bmiCategory = null;
+    if (bmi) {
+      if (bmi < 18.5) bmiCategory = "underweight";
+      else if (bmi < 25) bmiCategory = "normal";
+      else if (bmi < 30) bmiCategory = "overweight";
+      else bmiCategory = "obese";
+    }
+
+    const userProfile = {
+      timestamp: new Date().toISOString(),
+      personalInfo: {
+        name: formData.name.trim(),
+        age: parseInt(formData.age),
+        gender: formData.gender,
+        createdAt: new Date().toISOString().split('T')[0]
+      },
+      physicalData: {
+        weight: parseFloat(formData.weight.replace(",", ".")),
+        height: parseFloat(formData.height.replace(",", ".")),
+        bodyFat: formData.bodyFat ? parseFloat(formData.bodyFat.replace(",", ".")) : null,
+        muscleMass: formData.muscleMass ? parseFloat(formData.muscleMass.replace(",", ".")) : null,
+        bmi: bmi ? parseFloat(bmi.toFixed(1)) : null,
+        bmiCategory: bmiCategory
+      },
+      fitnessProfile: {
+        experienceLevel: formData.level,
+        primaryGoal: formData.goal,
+        workoutDaysPerWeek: formData.workoutDays.length,
+        preferredWorkoutDays: formData.workoutDays,
+        equipmentAccess: formData.equipmentAccess.trim()
+      },
+      healthInfo: {
+        hasInjuries: formData.hasInjuries,
+        injuries: formData.hasInjuries ? formData.injuries.trim() : null,
+        hasMedicalConditions: formData.hasMedicalConditions,
+        medicalConditions: formData.hasMedicalConditions ? formData.medicalConditions.trim() : null,
+        takesMedications: formData.takesMedications,
+        medications: formData.takesMedications ? formData.medications.trim() : null
+      },
+      settings: {
+        language: 'pt-BR',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        units: {
+          weight: 'kg',
+          height: 'cm',
+          temperature: 'celsius'
+        }
+      },
+      metadata: {
+        profileVersion: '1.0',
+        source: 'welcome-wizard',
+        completedSteps: totalSteps
+      }
+    };
+
+    return JSON.stringify(userProfile, null, 2);
+  };
+
   const validateStep = (currentStep) => {
     const newErrors = {};
     
@@ -34,7 +104,6 @@ const WelcomeWizard = () => {
       case 1:
         if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
         if (!formData.age) newErrors.age = 'Idade é obrigatória';
-        // Adicionada validação para o campo sexo
         if (!formData.gender) newErrors.gender = 'Sexo é obrigatório';
         break;
       case 2:
@@ -70,10 +139,33 @@ const WelcomeWizard = () => {
 
   const handleFinish = () => {
     if (validateStep(step)) {
-      console.log('Dados Finais:', formData);
-      // Em um app real, você faria uma chamada de API aqui em vez de um alerta.
-      alert('Formulário concluído com sucesso!');
+      const jsonProfile = generateUserProfile();
+      setGeneratedJson(jsonProfile);
+      setShowJsonModal(true);
+      
+      // Log no console para desenvolvimento
+      console.log('📋 Perfil do Usuário Gerado:', JSON.parse(jsonProfile));
     }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(generatedJson).then(() => {
+      alert('JSON copiado para a área de transferência!');
+    }).catch(err => {
+      console.error('Erro ao copiar:', err);
+    });
+  };
+
+  const downloadJson = () => {
+    const blob = new Blob([generatedJson], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `user-profile-${formData.name.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const toggleWorkoutDay = (day) => {
@@ -86,13 +178,6 @@ const WelcomeWizard = () => {
   };
 
   const formatNumber = (value) => value.replace(/[^\d,]/g, "").replace(/(\d+)(,?)(\d{0,2}).*/, "$1$2$3");
-
-  const calculateBMI = (weight, height) => {
-    const weightNum = parseFloat(weight.replace(",", "."));
-    const heightNum = parseFloat(height.replace(",", ".")) / 100;
-    if (!weightNum || !heightNum || heightNum <= 0) return null;
-    return weightNum / (heightNum * heightNum);
-  };
 
   const bmi = calculateBMI(formData.weight, formData.height);
   let bmiInfo = null;
@@ -142,7 +227,6 @@ const WelcomeWizard = () => {
                       errors.gender ? 'border-red-500' : 'border-gray-600 focus:border-blue-500'
                     }`}
                   >
-                    {/* Alteração 2: Adicionada a opção "Selecionar" */}
                     <option value="" disabled>Selecionar</option>
                     <option value="male">Masculino</option>
                     <option value="female">Feminino</option>
@@ -416,6 +500,7 @@ const WelcomeWizard = () => {
             <div className="text-center mb-6">
               <Check className="w-12 h-12 text-green-400 mx-auto mb-2" />
               <h3 className="text-xl font-bold text-white">Confirmação</h3>
+              <p className="text-gray-400 text-sm mt-2">Revise suas informações antes de finalizar</p>
             </div>
 
             <div className="bg-gray-700/50 rounded-lg p-4 max-h-60 overflow-y-auto">
@@ -426,8 +511,16 @@ const WelcomeWizard = () => {
                 <div><span className="text-gray-400">Meta:</span> <span className="text-white">{formData.goal}</span></div>
                 <div><span className="text-gray-400">Peso:</span> <span className="text-white">{formData.weight} kg</span></div>
                 <div><span className="text-gray-400">Altura:</span> <span className="text-white">{formData.height} cm</span></div>
-                <div className="col-span-2"><span className="text-gray-400">Treinos/semana:</span> <span className="text-white">{formData.workoutDays.length}</span></div>
+                <div><span className="text-gray-400">Nível:</span> <span className="text-white">{formData.level === 'beginner' ? 'Iniciante' : formData.level === 'intermediate' ? 'Intermediário' : 'Avançado'}</span></div>
+                <div><span className="text-gray-400">Treinos/semana:</span> <span className="text-white">{formData.workoutDays.length} dias</span></div>
+                {bmi && <div className="col-span-2"><span className="text-gray-400">IMC:</span> <span className="text-white">{bmi.toFixed(1)}</span></div>}
               </div>
+            </div>
+
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+              <p className="text-blue-400 text-sm">
+                ✨ Ao finalizar, será gerado um arquivo JSON com seu perfil completo que pode ser usado para integração com outros sistemas.
+              </p>
             </div>
           </div>
         );
@@ -438,72 +531,129 @@ const WelcomeWizard = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 overflow-y-auto">
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="w-full max-w-3xl">
-          <div className="bg-gray-800/95 rounded-2xl shadow-2xl border border-gray-700 p-6 backdrop-blur-sm">
-            {/* Header */}
-            <div className="text-center mb-6">
-              <h1 className="text-3xl font-bold text-white mb-2">Bem-vindo!</h1>
-              <p className="text-gray-400">Configure seu perfil de treino</p>
-            </div>
-
-            {/* Progress */}
-            <div className="mb-6">
-              <div className="flex justify-between mb-2">
-                <span className="text-sm text-gray-400">Passo {step} de {totalSteps}</span>
-                <span className="text-sm text-gray-400">{Math.round((step / totalSteps) * 100)}%</span>
+    <>
+      <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 overflow-y-auto">
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="w-full max-w-3xl">
+            <div className="bg-gray-800/95 rounded-2xl shadow-2xl border border-gray-700 p-6 backdrop-blur-sm">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <h1 className="text-3xl font-bold text-white mb-2">Bem-vindo!</h1>
+                <p className="text-gray-400">Configure seu perfil de treino</p>
               </div>
-              <div className="w-full h-2 bg-gray-700 rounded-full">
-                <div
-                  className="h-full bg-blue-600 rounded-full transition-all duration-300"
-                  style={{ width: `${(step / totalSteps) * 100}%` }}
-                />
+
+              {/* Progress */}
+              <div className="mb-6">
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm text-gray-400">Passo {step} de {totalSteps}</span>
+                  <span className="text-sm text-gray-400">{Math.round((step / totalSteps) * 100)}%</span>
+                </div>
+                <div className="w-full h-2 bg-gray-700 rounded-full">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                    style={{ width: `${(step / totalSteps) * 100}%` }}
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Content */}
-            <div className="mb-6 min-h-[350px]">
-              {renderStep()}
-            </div>
+              {/* Content */}
+              <div className="mb-6 min-h-[350px]">
+                {renderStep()}
+              </div>
 
-            {/* Navigation */}
-            <div className="flex justify-between">
-              <button
-                onClick={handlePrevious}
-                disabled={step === 1}
-                className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all ${
-                  step === 1
-                    ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
-                    : 'bg-gray-700 text-white hover:bg-gray-600'
-                }`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span>Anterior</span>
-              </button>
-
-              {step < totalSteps ? (
+              {/* Navigation */}
+              <div className="flex justify-between">
                 <button
-                  onClick={handleNext}
-                  className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all"
+                  onClick={handlePrevious}
+                  disabled={step === 1}
+                  className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                    step === 1
+                      ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                      : 'bg-gray-700 text-white hover:bg-gray-600'
+                  }`}
                 >
-                  <span>Próximo</span>
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Anterior</span>
                 </button>
-              ) : (
-                <button
-                  onClick={handleFinish}
-                  className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all"
-                >
-                  <span>Finalizar</span>
-                  <Check className="w-4 h-4" />
-                </button>
-              )}
+
+                {step < totalSteps ? (
+                  <button
+                    onClick={handleNext}
+                    className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all"
+                  >
+                    <span>Próximo</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleFinish}
+                    className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all"
+                  >
+                    <span>Finalizar</span>
+                    <Check className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Modal JSON */}
+      {showJsonModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <header className="p-6 border-b border-gray-700 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-white">Perfil JSON Gerado</h2>
+                <p className="text-gray-400 text-sm mt-1">Dados estruturados do seu perfil fitness</p>
+              </div>
+              <button 
+                onClick={() => setShowJsonModal(false)}
+                className="text-gray-400 hover:text-white text-3xl leading-none"
+              >
+                &times;
+              </button>
+            </header>
+            
+            <div className="p-6 flex-1 overflow-hidden flex flex-col">
+              {/* Botões de ação */}
+              <div className="flex gap-3 mb-4">
+                <button
+                  onClick={copyToClipboard}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+                >
+                  <Copy size={16} />
+                  Copiar JSON
+                </button>
+                <button
+                  onClick={downloadJson}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
+                >
+                  <Download size={16} />
+                  Baixar Arquivo
+                </button>
+              </div>
+
+              {/* JSON Preview */}
+              <div className="flex-1 overflow-y-auto bg-gray-800 rounded-lg p-4 border border-gray-600">
+                <pre className="text-gray-300 text-xs leading-relaxed whitespace-pre-wrap">
+                  {generatedJson}
+                </pre>
+              </div>
+
+              {/* Informações adicionais */}
+              <div className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <h4 className="text-green-400 font-medium mb-2">✅ Perfil Criado com Sucesso!</h4>
+                <p className="text-green-300 text-sm">
+                  Seu perfil foi estruturado e está pronto para ser usado. O JSON contém todas as informações organizadas em seções como dados pessoais, físicos, fitness, saúde e configurações.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

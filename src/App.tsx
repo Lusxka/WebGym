@@ -49,7 +49,6 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        {/* 2. Envolva as rotas com o AppProvider */}
         <AppProvider> 
           <AppRoutes />
         </AppProvider>

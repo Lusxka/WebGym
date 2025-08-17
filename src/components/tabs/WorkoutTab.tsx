@@ -1,148 +1,52 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dumbbell, Target, Video, Check, RefreshCw, Award, BarChart2, Zap, ChevronDown } from 'lucide-react';
-// Mock imports - substitua pelos seus componentes e contexto reais
-// import { useApp } from '../../context/AppContext';
-// import { Card } from '../Card';
-// import { Button } from '../Button';
-// import { Modal } from '../Modal';
-// import { VideoPlayer } from '../VideoPlayer';
-// import { mockWorkouts } from '../../data/workouts';
-// import { useTranslation } from '../../data/translations';
 
-// --- INÍCIO: Mocks para demonstração (Remova e use seus imports reais) ---
+// Imports reais dos seus componentes e contexto
+import { useApp } from '../../context/AppContext';
+import { Card } from '../Card';
+import { Button } from '../Button';
+import { Modal } from '../Modal';
+import { VideoPlayer } from '../VideoPlayer';
 
-// Mock do Contexto useApp
-// NOTA: Adicione os links de embed do YouTube na propriedade 'videoUrl'
-const mockWorkoutsData = [
-  { day: 'monday', name: "Peito & Tríceps", icon: Dumbbell, completed: true, exercises: [
-    { id: 'ex1', name: 'Supino Reto', sets: '4', reps: '10', completed: true, videoUrl: 'https://www.youtube.com/embed/your_video_id_here' }, 
-    { id: 'ex2', name: 'Tríceps Corda', sets: '4', reps: '12', completed: true, videoUrl: 'https://www.youtube.com/embed/your_video_id_here' }
-  ]},
-  { day: 'tuesday', name: "Costas & Bíceps", icon: Dumbbell, completed: true, exercises: [
-    { id: 'ex3', name: 'Puxada Frontal', sets: '4', reps: '10', completed: true, videoUrl: 'https://www.youtube.com/embed/your_video_id_here' }, 
-    { id: 'ex4', name: 'Rosca Direta', sets: '4', reps: '12', completed: true, videoUrl: 'https://www.youtube.com/embed/your_video_id_here' }
-  ]},
-  { day: 'wednesday', name: "Pernas Completo", icon: Target, completed: false, exercises: [
-    { id: 'ex5', name: 'Agachamento Livre', sets: '4', reps: '10', completed: true, videoUrl: 'https://www.youtube.com/embed/your_video_id_here' }, 
-    { id: 'ex6', name: 'Cadeira Extensora', sets: '4', reps: '12', completed: false, videoUrl: 'https://www.youtube.com/embed/your_video_id_here' }
-  ]},
-  { day: 'thursday', name: "Ombros & Abdômen", icon: Zap, completed: false, exercises: [
-    { id: 'ex7', name: 'Desenvolvimento', sets: '4', reps: '10', completed: false, videoUrl: 'https://www.youtube.com/embed/your_video_id_here' }, 
-    { id: 'ex8', name: 'Prancha', sets: '3', reps: '60s', completed: false, videoUrl: 'https://www.youtube.com/embed/your_video_id_here' }
-  ]},
-  { day: 'friday', name: "Cardio & Core", icon: Award, completed: false, exercises: [
-    { id: 'ex9', name: 'Corrida', sets: '1', reps: '30min', completed: false, videoUrl: 'https://www.youtube.com/embed/your_video_id_here' }
-  ]},
-  { day: 'saturday', name: "Descanso", icon: null, completed: false, exercises: [] },
-  { day: 'sunday', name: "Descanso", icon: null, completed: false, exercises: [] },
-];
-
-const useApp = () => {
-  const [state, setState] = useState({ 
-    workoutPlan: mockWorkoutsData,
-    user: { preferences: { language: 'pt-BR' } }
-  });
-  const dispatch = (action) => {
-    switch(action.type) {
-      case 'COMPLETE_EXERCISE': {
-        const { day, exerciseId } = action.payload;
-        const newPlan = state.workoutPlan.map(d => {
-          if (d.day === day) {
-            const newExercises = d.exercises.map(ex => ex.id === exerciseId ? { ...ex, completed: true } : ex);
-            const allDayCompleted = newExercises.every(ex => ex.completed);
-            return { ...d, exercises: newExercises, completed: allDayCompleted };
-          }
-          return d;
-        });
-        setState(s => ({ ...s, workoutPlan: newPlan }));
-        break;
-      }
-      case 'RESET_WEEK': {
-        const resetPlan = state.workoutPlan.map(d => ({
-          ...d,
-          completed: false,
-          exercises: d.exercises.map(ex => ({ ...ex, completed: false }))
-        }));
-        setState(s => ({ ...s, workoutPlan: resetPlan }));
-        break;
-      }
-      default:
-        break;
-    }
-  };
-  return { state, dispatch };
-};
-
-// Mock de Componentes e Funções
-const Card = ({ children, className = '' }) => <div className={`bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-2xl ${className}`}>{children}</div>;
-const Button = ({ children, onClick, icon: Icon, className = '', ...props }) => (
-    <button onClick={onClick} className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-all ${className}`} {...props}>
-        {Icon && <Icon size={16} />} 
-        {children}
-    </button>
-);
-const Modal = ({ isOpen, onClose, title, children }) => (
-  <AnimatePresence>
-    {isOpen && (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-          <header className="p-6 border-b border-gray-700 flex justify-between items-center">
-            <h2 className="text-xl font-bold text-white">{title}</h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
-          </header>
-          <div className="p-6 overflow-y-auto">{children}</div>
-        </motion.div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
-const VideoPlayer = ({ url, title }) => (
-    <div className="aspect-video bg-black rounded-lg mt-4 overflow-hidden">
-        <iframe
-            width="100%"
-            height="100%"
-            src={url}
-            title={`Vídeo do exercício: ${title}`}
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-        ></iframe>
-    </div>
-);
-const useTranslation = () => (key) => ({
+// Mock simples para a função de tradução, substitua se tiver uma real
+const useTranslation = () => (key: string) => ({
   monday: 'Segunda', tuesday: 'Terça', wednesday: 'Quarta', thursday: 'Quinta', friday: 'Sexta', saturday: 'Sábado', sunday: 'Domingo',
   sets: 'séries', reps: 'reps', completed: 'Concluído', markAsCompleted: 'Marcar como Concluído'
 }[key] || key);
 
-// --- FIM: Mocks para demonstração ---
-
 
 export const WorkoutTab = () => {
   const { state, dispatch } = useApp();
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [openVideoId, setOpenVideoId] = useState(null);
-  const t = useTranslation(state.user?.preferences.language);
+  const { workoutPlan } = state;
 
-  const handleDayClick = (dayId) => {
-    const dayWorkout = state.workoutPlan.find(d => d.day === dayId);
+  const [selectedDay, setSelectedDay] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [openVideoId, setOpenVideoId] = useState<string | null>(null);
+  const t = useTranslation();
+
+  const handleDayClick = (dayId: string) => {
+    if (!workoutPlan) return;
+    const dayWorkout = workoutPlan.find(d => d.day === dayId);
     if (dayWorkout && dayWorkout.exercises.length > 0) {
       setSelectedDay(dayWorkout);
       setIsModalOpen(true);
-      setOpenVideoId(null); // Reseta o vídeo aberto ao abrir um novo dia
+      setOpenVideoId(null);
     }
   };
 
-  const handleCompleteExercise = (exerciseId) => {
+  const handleCompleteExercise = (exerciseId: string) => {
     if (selectedDay) {
-      dispatch({
-        type: 'COMPLETE_EXERCISE',
-        payload: { day: selectedDay.day, exerciseId }
-      });
-      setSelectedDay(prev => {
-        const newExercises = prev.exercises.map(ex => ex.id === exerciseId ? { ...ex, completed: true } : ex);
-        const allDayCompleted = newExercises.every(ex => ex.completed);
+      // Lógica para atualizar o estado global (a ser implementada no reducer)
+      // dispatch({
+      //   type: 'COMPLETE_EXERCISE',
+      //   payload: { day: selectedDay.day, exerciseId }
+      // });
+      
+      // Atualização do estado local para feedback imediato
+      setSelectedDay((prev: any) => {
+        const newExercises = prev.exercises.map((ex: any) => ex.id === exerciseId ? { ...ex, completed: true } : ex);
+        const allDayCompleted = newExercises.every((ex: any) => ex.completed);
         return { ...prev, exercises: newExercises, completed: allDayCompleted };
       });
     }
@@ -150,26 +54,40 @@ export const WorkoutTab = () => {
   
   const handleResetWeek = () => {
     if (confirm('Tem certeza que deseja resetar o progresso da semana?')) {
-        dispatch({ type: 'RESET_WEEK' });
+        // Lógica para resetar o estado global (a ser implementada no reducer)
+        // dispatch({ type: 'RESET_WEEK' });
     }
   }
 
-  const toggleVideo = (exerciseId) => {
+  const toggleVideo = (exerciseId: string) => {
     setOpenVideoId(prevId => (prevId === exerciseId ? null : exerciseId));
   };
 
-  // Estatísticas calculadas
-  const daysWithWorkout = state.workoutPlan.filter(d => d.exercises.length > 0);
+  // Renderização condicional se o plano não existir
+  if (!workoutPlan) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
+        <Zap size={48} className="text-yellow-400 mb-4" />
+        <h2 className="text-2xl font-bold text-white mb-2">Seu Plano de Treino Inteligente Aparecerá Aqui</h2>
+        <p className="text-gray-400 max-w-md">
+          Parece que você ainda não tem um plano de treino. Preencha o formulário inicial para que a nossa IA crie um plano personalizado para você!
+        </p>
+      </div>
+    );
+  }
+
+  // Estatísticas calculadas a partir do plano real
+  const daysWithWorkout = workoutPlan.filter(d => d.exercises.length > 0);
   const completedDaysCount = daysWithWorkout.filter(d => d.completed).length;
   const totalWorkoutDays = daysWithWorkout.length;
-  const totalExercises = state.workoutPlan.reduce((acc, day) => acc + day.exercises.length, 0);
-  const totalCompletedExercises = state.workoutPlan.reduce((acc, day) => acc + day.exercises.filter(ex => ex.completed).length, 0);
+  const totalExercises = workoutPlan.reduce((acc, day) => acc + day.exercises.length, 0);
+  const totalCompletedExercises = workoutPlan.reduce((acc, day) => acc + day.exercises.filter(ex => ex.completed).length, 0);
+  
+  const iconMap: { [key: string]: React.ElementType } = { Dumbbell, Target, Zap, Award };
 
   return (
     <div className="min-h-screen font-sans bg-gray-900 text-gray-200">
-      {/* Main Content - Sem o Header */}
       <main className="container mx-auto px-4 py-8 md:py-12">
-        {/* Welcome Section */}
         <section className="text-center mb-12 p-8 bg-gray-800/50 border border-gray-700 rounded-2xl">
             <h1 className="text-4xl md:text-5xl font-extrabold mb-4 bg-gradient-to-r from-blue-400 to-purple-500 text-transparent bg-clip-text">Seu Treino Definitivo</h1>
             <p className="text-lg text-gray-400 mb-6">Hipertrofia & Definição com acompanhamento inteligente.</p>
@@ -179,11 +97,10 @@ export const WorkoutTab = () => {
             </div>
         </section>
 
-        {/* Days Grid */}
         <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {state.workoutPlan.map((day) => {
+          {workoutPlan.map((day) => {
             const hasWorkout = day.exercises && day.exercises.length > 0;
-            const DayIcon = day.icon;
+            const DayIcon = iconMap[day.icon] || Dumbbell;
 
             return (
               <motion.div
@@ -222,7 +139,6 @@ export const WorkoutTab = () => {
         </section>
       </main>
 
-      {/* Footer */}
       <footer className="mt-20 border-t border-gray-800 bg-gray-900/50">
           <div className="container mx-auto px-4 py-12">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
@@ -258,7 +174,6 @@ export const WorkoutTab = () => {
           </div>
       </footer>
 
-      {/* Exercise Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -266,7 +181,7 @@ export const WorkoutTab = () => {
       >
         {selectedDay && (
           <div className="space-y-4">
-            {selectedDay.exercises.map((exercise) => (
+            {selectedDay.exercises.map((exercise: any) => (
               <Card key={exercise.id} className={`p-4 transition-all ${exercise.completed ? 'border-green-500/50' : ''}`}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1 cursor-pointer" onClick={() => toggleVideo(exercise.id)}>
@@ -282,7 +197,7 @@ export const WorkoutTab = () => {
                   <Button
                     onClick={() => handleCompleteExercise(exercise.id)}
                     disabled={exercise.completed}
-                    icon={exercise.completed ? Check : null}
+                    icon={exercise.completed ? Check : undefined}
                     className={`ml-4 ${exercise.completed 
                         ? 'bg-green-500/20 text-green-400 cursor-default' 
                         : 'bg-blue-600 text-white hover:bg-blue-500'}`}
@@ -308,7 +223,6 @@ export const WorkoutTab = () => {
         )}
       </Modal>
 
-      {/* FAB - Reset Button */}
       <button 
         onClick={handleResetWeek}
         title="Resetar Semana"
@@ -316,7 +230,6 @@ export const WorkoutTab = () => {
       >
           <RefreshCw size={24} />
       </button>
-
     </div>
   );
 };

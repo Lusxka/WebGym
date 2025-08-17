@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Check, User, Scale, Target, Calendar, Heart, Download, Copy, Dumbbell, Star, Activity, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, User, Scale, Target, Calendar, Heart, Dumbbell, Star, Activity, Zap } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext'; // Importar o useAuth para pegar o token
 
 const WelcomeWizard = () => {
+  const { dispatch } = useApp();
+  const { session } = useAuth(); // Obter a sessão do usuário logado
   const [step, setStep] = useState(1);
-  const [showJsonModal, setShowJsonModal] = useState(false);
-  const [generatedJson, setGeneratedJson] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [errorGenerating, setErrorGenerating] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -15,7 +20,7 @@ const WelcomeWizard = () => {
     muscleMass: '',
     level: 'beginner',
     goal: '',
-    workoutDays: [],
+    workoutDays: [] as string[],
     equipmentAccess: '',
     hasInjuries: false,
     injuries: '',
@@ -25,18 +30,16 @@ const WelcomeWizard = () => {
     medications: '',
   });
 
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<any>({});
   const totalSteps = 6;
 
-  // Função para calcular IMC
-  const calculateBMI = (weight, height) => {
+  const calculateBMI = (weight: string, height: string) => {
     const weightNum = parseFloat(weight.replace(",", "."));
     const heightNum = parseFloat(height.replace(",", ".")) / 100;
     if (!weightNum || !heightNum || heightNum <= 0) return null;
     return weightNum / (heightNum * heightNum);
   };
 
-  // Função para gerar JSON estruturado
   const generateUserProfile = () => {
     const bmi = calculateBMI(formData.weight, formData.height);
     let bmiCategory = null;
@@ -81,11 +84,7 @@ const WelcomeWizard = () => {
       settings: {
         language: 'pt_BR',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        units: {
-          weight: 'kg',
-          height: 'cm',
-          temperature: 'celsius'
-        }
+        units: { weight: 'kg', height: 'cm' }
       },
       metadata: {
         profileVersion: '1.0',
@@ -97,9 +96,8 @@ const WelcomeWizard = () => {
     return JSON.stringify(userProfile, null, 2);
   };
 
-  const validateStep = (currentStep) => {
-    const newErrors = {};
-
+  const validateStep = (currentStep: number) => {
+    const newErrors: any = {};
     switch (currentStep) {
       case 1:
         if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
@@ -117,10 +115,8 @@ const WelcomeWizard = () => {
         if (formData.workoutDays.length === 0) newErrors.workoutDays = 'Selecione pelo menos um dia';
         if (!formData.equipmentAccess.trim()) newErrors.equipmentAccess = 'Campo obrigatório';
         break;
-      default:
-        break;
+      default: break;
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -137,38 +133,63 @@ const WelcomeWizard = () => {
     }
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (validateStep(step)) {
-      const jsonProfile = generateUserProfile();
-      setGeneratedJson(jsonProfile);
-      setShowJsonModal(true);
+      setIsGenerating(true);
+      setErrorGenerating(null);
+      dispatch({ type: 'SET_GENERATING_PLAN', payload: true });
 
-      // Log no console para desenvolvimento
-      console.log('📋 Perfil do Usuário Gerado:', JSON.parse(jsonProfile));
+      const userProfileObject = JSON.parse(generateUserProfile());
+      const functionUrl = import.meta.env.VITE_GEMINI_FUNCTION_URL;
+
+      if (!functionUrl) {
+        console.error("VITE_GEMINI_FUNCTION_URL não está definida no .env");
+        alert("Erro de configuração. A URL da função não foi encontrada.");
+        setIsGenerating(false);
+        dispatch({ type: 'SET_GENERATING_PLAN', payload: false });
+        return;
+      }
+
+      try {
+        const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // *** CORREÇÃO AQUI: Adicionar o token de autorização ***
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ userProfile: userProfileObject }),
+        });
+
+        if (!response.ok) {
+          // Trata o erro 401 especificamente
+          if (response.status === 401) {
+            throw new Error('Não autorizado. Faça o login novamente.');
+          }
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Falha ao conectar com a IA.');
+        }
+
+        const result = await response.json();
+
+        if (result.workoutPlan) {
+          dispatch({ type: 'SET_WORKOUT_PLAN', payload: result.workoutPlan });
+        }
+        
+        dispatch({ type: 'SHOW_WIZARD', payload: false });
+
+      } catch (error: any) {
+        console.error("Falha ao gerar plano:", error);
+        setErrorGenerating(`Desculpe, não foi possível gerar seu plano: ${error.message}`);
+        alert(`Ocorreu um erro ao gerar seu plano. Por favor, tente novamente.\nDetalhes: ${error.message}`);
+      } finally {
+        setIsGenerating(false);
+        dispatch({ type: 'SET_GENERATING_PLAN', payload: false });
+      }
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedJson).then(() => {
-      alert('JSON copiado para a área de transferência!');
-    }).catch(err => {
-      console.error('Erro ao copiar:', err);
-    });
-  };
-
-  const downloadJson = () => {
-    const blob = new Blob([generatedJson], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `user-profile-${formData.name.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const toggleWorkoutDay = (day) => {
+  const toggleWorkoutDay = (day: string) => {
     setFormData(prev => ({
       ...prev,
       workoutDays: prev.workoutDays.includes(day)
@@ -177,7 +198,7 @@ const WelcomeWizard = () => {
     }));
   };
 
-  const formatNumber = (value) => value.replace(/[^\d,]/g, "").replace(/(\d+)(,?)(\d{0,2}).*/, "$1$2$3");
+  const formatNumber = (value: string) => value.replace(/[^\d,]/g, "").replace(/(\d+)(,?)(\d{0,2}).*/, "$1$2$3");
 
   const bmi = calculateBMI(formData.weight, formData.height);
   let bmiInfo = null;
@@ -468,11 +489,11 @@ const WelcomeWizard = () => {
                     <div className="relative">
                       <input
                         type="checkbox"
-                        checked={formData[item.key]}
+                        checked={formData[item.key as keyof typeof formData]}
                         onChange={(e) => setFormData(prev => ({
                           ...prev,
                           [item.key]: e.target.checked,
-                          [item.field]: e.target.checked ? prev[item.field] : ''
+                          [item.field]: e.target.checked ? prev[item.field as keyof typeof formData] : ''
                         }))}
                         className="w-5 h-5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                       />
@@ -481,9 +502,9 @@ const WelcomeWizard = () => {
                     <span className="text-gray-200 font-medium group-hover:text-white transition-colors">{item.label}</span>
                   </label>
 
-                  {formData[item.key] && (
+                  {formData[item.key as keyof typeof formData] && (
                     <textarea
-                      value={formData[item.field]}
+                      value={formData[item.field as keyof typeof formData] as string}
                       onChange={(e) => setFormData(prev => ({ ...prev, [item.field]: e.target.value }))}
                       className="w-full mt-4 px-4 py-3 bg-gray-900/50 text-white rounded-xl border-2 border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/30 resize-none transition-all duration-300"
                       rows={3}
@@ -646,20 +667,12 @@ const WelcomeWizard = () => {
   return (
     <>
       <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-y-auto">
-        {/* Background Pattern */}
         <div className="absolute inset-0 opacity-5">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`,
-            backgroundSize: '50px 50px'
-          }}></div>
+          <div className="absolute inset-0" style={{ backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`, backgroundSize: '50px 50px' }}></div>
         </div>
-
         <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
           <div className="w-full max-w-4xl">
             <div className="bg-gray-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-700/50 overflow-hidden">
-
-
-              {/* Progress Bar */}
               <div className="px-8 py-6 bg-gray-800/50">
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-3">
@@ -676,42 +689,25 @@ const WelcomeWizard = () => {
                   />
                 </div>
               </div>
-
-              {/* Content */}
               <div className="p-8">
                 <div className="min-h-[500px]">
                   {renderStep()}
                 </div>
               </div>
-
-              {/* Navigation */}
               <div className="px-8 py-6 bg-gray-800/30 border-t border-gray-700/50 flex justify-between items-center">
                 <button
                   onClick={handlePrevious}
                   disabled={step === 1}
-                  className={`flex items-center space-x-3 px-6 py-3 rounded-2xl font-semibold transition-all duration-300 ${step === 1
-                      ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
-                      : 'bg-gray-700 text-white hover:bg-gray-600 hover:scale-105 shadow-lg'
-                    }`}
+                  className={`flex items-center space-x-3 px-6 py-3 rounded-2xl font-semibold transition-all duration-300 ${step === 1 ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed' : 'bg-gray-700 text-white hover:bg-gray-600 hover:scale-105 shadow-lg'}`}
                 >
                   <ChevronLeft className="w-5 h-5" />
                   <span>Anterior</span>
                 </button>
-
                 <div className="flex items-center gap-2">
                   {Array.from({ length: totalSteps }, (_, i) => (
-                    <div
-                      key={i}
-                      className={`w-2 h-2 rounded-full transition-all duration-300 ${i + 1 === step
-                          ? 'bg-blue-500 scale-125'
-                          : i + 1 < step
-                            ? 'bg-green-500'
-                            : 'bg-gray-600'
-                        }`}
-                    />
+                    <div key={i} className={`w-2 h-2 rounded-full transition-all duration-300 ${i + 1 === step ? 'bg-blue-500 scale-125' : i + 1 < step ? 'bg-green-500' : 'bg-gray-600'}`} />
                   ))}
                 </div>
-
                 {step < totalSteps ? (
                   <button
                     onClick={handleNext}
@@ -721,12 +717,26 @@ const WelcomeWizard = () => {
                     <ChevronRight className="w-5 h-5" />
                   </button>
                 ) : (
+                  // *** BOTÃO FINALIZAR ATUALIZADO COM LOADING ***
                   <button
                     onClick={handleFinish}
-                    className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all duration-300 hover:scale-105 shadow-lg"
+                    disabled={isGenerating}
+                    className="flex items-center justify-center space-x-3 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg disabled:opacity-70 disabled:cursor-not-allowed disabled:scale-100"
                   >
-                    <span>Finalizar</span>
-                    <Check className="w-5 h-5" />
+                    {isGenerating ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Gerando Plano...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Finalizar</span>
+                        <Check className="w-5 h-5" />
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -734,77 +744,7 @@ const WelcomeWizard = () => {
           </div>
         </div>
       </div>
-
-      {/* Modal JSON - Redesenhado */}
-      {showJsonModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-gray-900 to-gray-800 border border-gray-700 rounded-3xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl">
-
-            {/* Header do Modal */}
-            <header className="p-8 border-b border-gray-700 bg-gradient-to-r from-green-600/20 to-blue-600/20">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-500 rounded-2xl flex items-center justify-center">
-                    <Check className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">Perfil Criado com Sucesso!</h2>
-                    <p className="text-gray-400 text-sm mt-1">Dados estruturados do seu perfil fitness</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowJsonModal(false)}
-                  className="text-gray-400 hover:text-white text-4xl leading-none transition-colors hover:rotate-90 duration-300"
-                >
-                  &times;
-                </button>
-              </div>
-            </header>
-
-            <div className="p-8 flex-1 overflow-hidden flex flex-col">
-
-              {/* Botões de ação */}
-              <div className="flex gap-4 mb-6">
-                <button
-                  onClick={copyToClipboard}
-                  className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 font-semibold shadow-lg hover:scale-105"
-                >
-                  <Copy size={20} />
-                  Copiar JSON
-                </button>
-                <button
-                  onClick={downloadJson}
-                  className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:from-green-700 hover:to-green-800 transition-all duration-300 font-semibold shadow-lg hover:scale-105"
-                >
-                  <Download size={20} />
-                  Baixar Arquivo
-                </button>
-              </div>
-
-              {/* JSON Preview */}
-              <div className="flex-1 overflow-y-auto bg-gray-900/50 rounded-2xl p-6 border border-gray-700/50 backdrop-blur-sm">
-                <pre className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap font-mono">
-                  {generatedJson}
-                </pre>
-              </div>
-
-              {/* Informações adicionais */}
-              <div className="mt-6 p-6 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-2xl backdrop-blur-sm">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
-                    <Check className="w-4 h-4 text-white" />
-                  </div>
-                  <h4 className="text-green-400 font-bold text-lg">Perfil Estruturado e Pronto!</h4>
-                </div>
-                <p className="text-green-300 text-sm leading-relaxed">
-                  Seu perfil foi criado com sucesso e contém todas as informações organizadas em seções:
-                  dados pessoais, físicos, fitness, saúde e configurações. Agora você pode começar sua jornada personalizada no WebGym! 🚀
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* O Modal de JSON foi removido pois a ação agora é direta */}
     </>
   );
 };

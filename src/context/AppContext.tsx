@@ -17,12 +17,32 @@ export interface UserProfile {
   avatar_url?: string;
 }
 
+// Tipagem para o plano de treino que o Gemini irá retornar
+export interface WorkoutPlan {
+  day: string;
+  name: string;
+  icon: string;
+  completed: boolean;
+  exercises: Array<{
+    id: string;
+    name: string;
+    sets: string;
+    reps: string;
+    rest: string;
+    completed: boolean;
+    videoUrl: string | null;
+    observation: string;
+  }>;
+}
+
 // Tipagem para o estado global do AppContext
 interface AppState {
   user: UserProfile | null;
   isAuthenticated: boolean;
   showWizard: boolean;
   loading: boolean;
+  workoutPlan: WorkoutPlan[] | null;
+  isGeneratingPlan: boolean;
 }
 
 type Action =
@@ -30,7 +50,9 @@ type Action =
   | { type: 'LOGOUT' }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SHOW_WIZARD'; payload: boolean }
-  | { type: 'UPDATE_USER_PROFILE'; payload: Partial<UserProfile> };
+  | { type: 'UPDATE_USER_PROFILE'; payload: Partial<UserProfile> }
+  | { type: 'SET_WORKOUT_PLAN'; payload: WorkoutPlan[] }
+  | { type: 'SET_GENERATING_PLAN'; payload: boolean };
 
 // Estado inicial seguro para evitar erros
 const initialState: AppState = {
@@ -38,6 +60,8 @@ const initialState: AppState = {
   isAuthenticated: false,
   showWizard: false,
   loading: true,
+  workoutPlan: null,
+  isGeneratingPlan: false,
 };
 
 const appReducer = (state: AppState, action: Action): AppState => {
@@ -63,6 +87,10 @@ const appReducer = (state: AppState, action: Action): AppState => {
             ...state,
             user: state.user ? { ...state.user, ...action.payload } : null,
         };
+    case 'SET_WORKOUT_PLAN':
+      return { ...state, workoutPlan: action.payload };
+    case 'SET_GENERATING_PLAN':
+      return { ...state, isGeneratingPlan: action.payload };
     default:
       return state;
   }
@@ -93,7 +121,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           altura: null, 
           sexo: null, 
           objetivos: null,
-          preferencias: JSON.stringify({ language: 'pt_BR' }), // CORREÇÃO: Usar pt_BR ao invés de pt
+          preferencias: JSON.stringify({ language: 'pt_BR' }),
           nivel: null, 
           criado_em: new Date().toISOString()
         };
@@ -102,30 +130,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       };
 
       try {
-        // CORREÇÃO: Usar maybeSingle() em vez de single() para evitar erro quando não há resultado
         const { data, error } = await supabase
           .from('usuarios')
           .select('*')
           .eq('id', authUser.id)
-          .maybeSingle(); // Esta é a correção principal!
+          .maybeSingle();
 
         if (error) {
             console.warn("Erro ao buscar perfil:", error.message);
             handleFetchError();
         } else if (data) {
-          // CORREÇÃO: Verificar se preferencias é uma string válida, senão criar uma padrão
           const profileData = {
             ...data,
             preferencias: data.preferencias || JSON.stringify({ language: 'pt_BR' })
           };
           
           dispatch({ type: 'LOGIN_SUCCESS', payload: profileData });
-          // Se faltar dados importantes, mostra o wizard para completar
           if (!data.nome || !data.objetivos) {
             dispatch({ type: 'SHOW_WIZARD', payload: true });
           }
         } else {
-            // Usuário não encontrado - criar perfil temporário
             console.log("Usuário não encontrado, criando perfil temporário");
             handleFetchError();
         }

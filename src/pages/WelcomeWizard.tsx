@@ -99,7 +99,7 @@ const WelcomeWizard = () => {
 
   const validateStep = (currentStep) => {
     const newErrors = {};
-    
+
     switch (currentStep) {
       case 1:
         if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
@@ -120,7 +120,7 @@ const WelcomeWizard = () => {
       default:
         break;
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -142,7 +142,7 @@ const WelcomeWizard = () => {
       const jsonProfile = generateUserProfile();
       setGeneratedJson(jsonProfile);
       setShowJsonModal(true);
-      
+
       // Log no console para desenvolvimento
       console.log('📋 Perfil do Usuário Gerado:', JSON.parse(jsonProfile));
     }
@@ -212,7 +212,7 @@ const WelcomeWizard = () => {
               <h3 className="text-2xl font-bold text-white mb-2">Informações Pessoais</h3>
               <p className="text-gray-400">Vamos começar conhecendo você melhor</p>
             </div>
-            
+
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-300 mb-3">
@@ -222,9 +222,8 @@ const WelcomeWizard = () => {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className={`w-full px-6 py-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/30 ${
-                    errors.name ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-blue-500 hover:border-gray-600'
-                  }`}
+                  className={`w-full px-6 py-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/30 ${errors.name ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-blue-500 hover:border-gray-600'
+                    }`}
                   placeholder="Digite seu nome completo"
                 />
                 {errors.name && <p className="text-red-400 text-sm mt-2 flex items-center gap-2">
@@ -232,7 +231,7 @@ const WelcomeWizard = () => {
                   {errors.name}
                 </p>}
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-300 mb-3">
@@ -241,9 +240,8 @@ const WelcomeWizard = () => {
                   <select
                     value={formData.gender}
                     onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
-                    className={`w-full px-6 py-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/30 ${
-                      errors.gender ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-blue-500 hover:border-gray-600'
-                    }`}
+                    className={`w-full px-6 py-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/30 ${errors.gender ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-blue-500 hover:border-gray-600'
+                      }`}
                   >
                     <option value="" disabled>Selecione seu sexo</option>
                     <option value="male">Masculino</option>
@@ -263,9 +261,8 @@ const WelcomeWizard = () => {
                     type="number"
                     value={formData.age}
                     onChange={(e) => setFormData(prev => ({ ...prev, age: e.target.value }))}
-                    className={`w-full px-6 py-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/30 ${
-                      errors.age ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-blue-500 hover:border-gray-600'
-                    }`}
+                    className={`w-full px-6 py-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/30 ${errors.age ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-blue-500 hover:border-gray-600'
+                      }`}
                     placeholder="Sua idade"
                     min="10"
                     max="100"
@@ -301,9 +298,8 @@ const WelcomeWizard = () => {
                     type="text"
                     value={formData.weight}
                     onChange={(e) => setFormData(prev => ({ ...prev, weight: formatNumber(e.target.value) }))}
-                    className={`w-full px-6 py-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-green-500/30 ${
-                      errors.weight ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-green-500 hover:border-gray-600'
-                    }`}
+                    className={`w-full px-6 py-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-green-500/30 ${errors.weight ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-green-500 hover:border-gray-600'
+                      }`}
                     placeholder="Ex: 70,5"
                   />
                   {errors.weight && <p className="text-red-400 text-sm mt-2 flex items-center gap-2">
@@ -311,7 +307,7 @@ const WelcomeWizard = () => {
                     {errors.weight}
                   </p>}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-300 mb-3">
                     Altura (cm) <span className="text-red-400">*</span>
@@ -320,9 +316,8 @@ const WelcomeWizard = () => {
                     type="text"
                     value={formData.height}
                     onChange={(e) => setFormData(prev => ({ ...prev, height: formatNumber(e.target.value) }))}
-                    className={`w-full px-6 py-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-green-500/30 ${
-                      errors.height ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-green-500 hover:border-gray-600'
-                    }`}
+                    className={`w-full px-6 py-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-green-500/30 ${errors.height ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-green-500 hover:border-gray-600'
+                      }`}
                     placeholder="Ex: 175"
                   />
                   {errors.height && <p className="text-red-400 text-sm mt-2 flex items-center gap-2">
@@ -345,7 +340,7 @@ const WelcomeWizard = () => {
                     placeholder="Opcional - se souber"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-300 mb-3">
                     Massa muscular (kg)
@@ -372,8 +367,8 @@ const WelcomeWizard = () => {
                     </span>
                   </div>
                   <div className="w-full h-3 bg-gray-700 rounded-full overflow-hidden">
-                    <div className={`h-full bg-gradient-to-r ${bmiInfo.color} rounded-full transition-all duration-1000 shadow-lg`} 
-                         style={{ width: `${Math.min(bmi, 35) * 3}%` }} />
+                    <div className={`h-full bg-gradient-to-r ${bmiInfo.color} rounded-full transition-all duration-1000 shadow-lg`}
+                      style={{ width: `${Math.min(bmi, 35) * 3}%` }} />
                   </div>
                 </div>
               )}
@@ -407,18 +402,15 @@ const WelcomeWizard = () => {
                         key={level.value}
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, level: level.value }))}
-                        className={`p-6 rounded-2xl border-2 transition-all duration-300 hover:scale-105 group ${
-                          formData.level === level.value
+                        className={`p-6 rounded-2xl border-2 transition-all duration-300 hover:scale-105 group ${formData.level === level.value
                             ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/25'
                             : 'border-gray-700 hover:border-gray-600 bg-gray-800/50'
-                        }`}
+                          }`}
                       >
-                        <LevelIcon className={`w-8 h-8 mx-auto mb-3 ${
-                          formData.level === level.value ? 'text-purple-400' : 'text-gray-400 group-hover:text-gray-300'
-                        }`} />
-                        <h4 className={`font-bold text-lg ${
-                          formData.level === level.value ? 'text-purple-400' : 'text-white'
-                        }`}>{level.label}</h4>
+                        <LevelIcon className={`w-8 h-8 mx-auto mb-3 ${formData.level === level.value ? 'text-purple-400' : 'text-gray-400 group-hover:text-gray-300'
+                          }`} />
+                        <h4 className={`font-bold text-lg ${formData.level === level.value ? 'text-purple-400' : 'text-white'
+                          }`}>{level.label}</h4>
                         <p className="text-gray-400 text-sm mt-1">{level.desc}</p>
                       </button>
                     );
@@ -436,11 +428,10 @@ const WelcomeWizard = () => {
                       key={goal}
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, goal }))}
-                      className={`p-4 rounded-2xl border-2 text-sm font-semibold transition-all duration-300 hover:scale-105 ${
-                        formData.goal === goal
+                      className={`p-4 rounded-2xl border-2 text-sm font-semibold transition-all duration-300 hover:scale-105 ${formData.goal === goal
                           ? 'border-blue-500 bg-blue-500/20 text-blue-400 shadow-lg shadow-blue-500/25'
                           : 'border-gray-700 hover:border-gray-600 text-gray-300 bg-gray-800/50'
-                      }`}
+                        }`}
                     >
                       {goal}
                     </button>
@@ -489,7 +480,7 @@ const WelcomeWizard = () => {
                     <span className="text-2xl">{item.icon}</span>
                     <span className="text-gray-200 font-medium group-hover:text-white transition-colors">{item.label}</span>
                   </label>
-                  
+
                   {formData[item.key] && (
                     <textarea
                       value={formData[item.field]}
@@ -535,11 +526,10 @@ const WelcomeWizard = () => {
                       key={day.key}
                       type="button"
                       onClick={() => toggleWorkoutDay(day.key)}
-                      className={`p-4 rounded-2xl border-2 text-sm font-bold transition-all duration-300 hover:scale-105 group ${
-                        formData.workoutDays.includes(day.key)
+                      className={`p-4 rounded-2xl border-2 text-sm font-bold transition-all duration-300 hover:scale-105 group ${formData.workoutDays.includes(day.key)
                           ? 'border-orange-500 bg-orange-500/20 text-orange-400 shadow-lg shadow-orange-500/25'
                           : 'border-gray-700 hover:border-gray-600 text-gray-300 bg-gray-800/50'
-                      }`}
+                        }`}
                     >
                       <div className="text-base">{day.label}</div>
                       <div className="text-xs opacity-60 mt-1">{day.full}</div>
@@ -556,15 +546,18 @@ const WelcomeWizard = () => {
                 <label className="block text-sm font-semibold text-gray-300 mb-3">
                   Equipamentos disponíveis <span className="text-red-400">*</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.equipmentAccess}
                   onChange={(e) => setFormData(prev => ({ ...prev, equipmentAccess: e.target.value }))}
-                  className={`w-full px-6 py-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-orange-500/30 ${
-                    errors.equipmentAccess ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-orange-500 hover:border-gray-600'
-                  }`}
-                  placeholder="Ex: academia completa, casa com halteres, apenas peso corporal..."
-                />
+                  className={`w-full px-6 py-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-orange-500/30 ${errors.equipmentAccess ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-orange-500 hover:border-gray-600'
+                    }`}
+                >
+                  <option value="" disabled>Selecione o tipo de equipamento</option>
+                  <option value="academia">Academia</option>
+                  <option value="halteres">Halteres em casa</option>
+                  <option value="calistenia">Calistenia</option>
+                  <option value="crossfit">CrossFit</option>
+                </select>
                 {errors.equipmentAccess && <p className="text-red-400 text-sm mt-3 flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
                   {errors.equipmentAccess}
@@ -588,42 +581,42 @@ const WelcomeWizard = () => {
             <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border-2 border-gray-700 p-6 max-h-80 overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div className="flex justify-between items-center py-2 border-b border-gray-700/50">
-                  <span className="text-gray-400 font-medium">Nome:</span> 
+                  <span className="text-gray-400 font-medium">Nome:</span>
                   <span className="text-white font-semibold">{formData.name}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-700/50">
-                  <span className="text-gray-400 font-medium">Idade:</span> 
+                  <span className="text-gray-400 font-medium">Idade:</span>
                   <span className="text-white font-semibold">{formData.age} anos</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-700/50">
-                  <span className="text-gray-400 font-medium">Sexo:</span> 
+                  <span className="text-gray-400 font-medium">Sexo:</span>
                   <span className="text-white font-semibold">{formData.gender === 'male' ? 'Masculino' : 'Feminino'}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-700/50">
-                  <span className="text-gray-400 font-medium">Meta:</span> 
+                  <span className="text-gray-400 font-medium">Meta:</span>
                   <span className="text-white font-semibold">{formData.goal}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-700/50">
-                  <span className="text-gray-400 font-medium">Peso:</span> 
+                  <span className="text-gray-400 font-medium">Peso:</span>
                   <span className="text-white font-semibold">{formData.weight} kg</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-700/50">
-                  <span className="text-gray-400 font-medium">Altura:</span> 
+                  <span className="text-gray-400 font-medium">Altura:</span>
                   <span className="text-white font-semibold">{formData.height} cm</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-700/50">
-                  <span className="text-gray-400 font-medium">Nível:</span> 
+                  <span className="text-gray-400 font-medium">Nível:</span>
                   <span className="text-white font-semibold">
                     {formData.level === 'beginner' ? 'Iniciante' : formData.level === 'intermediate' ? 'Intermediário' : 'Avançado'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-700/50">
-                  <span className="text-gray-400 font-medium">Treinos/semana:</span> 
+                  <span className="text-gray-400 font-medium">Treinos/semana:</span>
                   <span className="text-white font-semibold">{formData.workoutDays.length} dias</span>
                 </div>
                 {bmi && (
                   <div className="flex justify-between items-center py-2 border-b border-gray-700/50 md:col-span-2">
-                    <span className="text-gray-400 font-medium">IMC:</span> 
+                    <span className="text-gray-400 font-medium">IMC:</span>
                     <span className={`font-bold ${bmiInfo?.textColor}`}>{bmi.toFixed(1)} - {bmiInfo?.label}</span>
                   </div>
                 )}
@@ -638,7 +631,7 @@ const WelcomeWizard = () => {
                 <h4 className="text-emerald-400 font-bold text-lg">Tudo pronto para começar!</h4>
               </div>
               <p className="text-emerald-300 text-sm leading-relaxed">
-                Seu perfil personalizado será criado e você receberá um plano de treino e dieta adequado aos seus objetivos. 
+                Seu perfil personalizado será criado e você receberá um plano de treino e dieta adequado aos seus objetivos.
                 Vamos juntos nessa jornada fitness! 💪
               </p>
             </div>
@@ -696,11 +689,10 @@ const WelcomeWizard = () => {
                 <button
                   onClick={handlePrevious}
                   disabled={step === 1}
-                  className={`flex items-center space-x-3 px-6 py-3 rounded-2xl font-semibold transition-all duration-300 ${
-                    step === 1
+                  className={`flex items-center space-x-3 px-6 py-3 rounded-2xl font-semibold transition-all duration-300 ${step === 1
                       ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
                       : 'bg-gray-700 text-white hover:bg-gray-600 hover:scale-105 shadow-lg'
-                  }`}
+                    }`}
                 >
                   <ChevronLeft className="w-5 h-5" />
                   <span>Anterior</span>
@@ -710,13 +702,12 @@ const WelcomeWizard = () => {
                   {Array.from({ length: totalSteps }, (_, i) => (
                     <div
                       key={i}
-                      className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                        i + 1 === step
+                      className={`w-2 h-2 rounded-full transition-all duration-300 ${i + 1 === step
                           ? 'bg-blue-500 scale-125'
                           : i + 1 < step
-                          ? 'bg-green-500'
-                          : 'bg-gray-600'
-                      }`}
+                            ? 'bg-green-500'
+                            : 'bg-gray-600'
+                        }`}
                     />
                   ))}
                 </div>
@@ -748,7 +739,7 @@ const WelcomeWizard = () => {
       {showJsonModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-gradient-to-br from-gray-900 to-gray-800 border border-gray-700 rounded-3xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl">
-            
+
             {/* Header do Modal */}
             <header className="p-8 border-b border-gray-700 bg-gradient-to-r from-green-600/20 to-blue-600/20">
               <div className="flex justify-between items-center">
@@ -761,7 +752,7 @@ const WelcomeWizard = () => {
                     <p className="text-gray-400 text-sm mt-1">Dados estruturados do seu perfil fitness</p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowJsonModal(false)}
                   className="text-gray-400 hover:text-white text-4xl leading-none transition-colors hover:rotate-90 duration-300"
                 >
@@ -769,9 +760,9 @@ const WelcomeWizard = () => {
                 </button>
               </div>
             </header>
-            
+
             <div className="p-8 flex-1 overflow-hidden flex flex-col">
-              
+
               {/* Botões de ação */}
               <div className="flex gap-4 mb-6">
                 <button
@@ -806,7 +797,7 @@ const WelcomeWizard = () => {
                   <h4 className="text-green-400 font-bold text-lg">Perfil Estruturado e Pronto!</h4>
                 </div>
                 <p className="text-green-300 text-sm leading-relaxed">
-                  Seu perfil foi criado com sucesso e contém todas as informações organizadas em seções: 
+                  Seu perfil foi criado com sucesso e contém todas as informações organizadas em seções:
                   dados pessoais, físicos, fitness, saúde e configurações. Agora você pode começar sua jornada personalizada no WebGym! 🚀
                 </p>
               </div>

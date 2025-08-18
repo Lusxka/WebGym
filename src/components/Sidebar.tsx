@@ -28,18 +28,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen
   // CORREÇÃO: Parse seguro das preferências e fallback para idioma padrão
   const getLanguageFromPreferences = (): 'pt_BR' | 'en_US' => {
     try {
-      if (state.user?.preferencias) {
-        const prefs = JSON.parse(state.user.preferencias);
-        // Mapear idiomas para o formato correto
-        const langMap: { [key: string]: 'pt_BR' | 'en_US' } = {
-          'pt': 'pt_BR',
-          'pt_BR': 'pt_BR',
-          'en': 'en_US',
-          'en_US': 'en_US'
-        };
-        return langMap[prefs.language] || 'pt_BR';
+      const prefs = state.user?.preferencias;
+
+      if (!prefs) return 'pt_BR';
+
+      // Se já for objeto
+      if (typeof prefs === 'object') {
+        return prefs.language || 'pt_BR';
       }
-      return 'pt_BR'; // idioma padrão
+
+      // Se for string, tenta parsear
+      if (typeof prefs === 'string') {
+        const parsed = JSON.parse(prefs);
+        return parsed.language || 'pt_BR';
+      }
+
+      return 'pt_BR';
     } catch (error) {
       console.warn('Erro ao fazer parse das preferências:', error);
       return 'pt_BR';
@@ -99,11 +103,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen
           <div className="p-6 border-b border-gray-700">
             <div className="flex items-center gap-3">
               <img
-                src={state.user?.avatar_url || '/default-avatar.png'} // CORREÇÃO: usar avatar_url
-                alt={state.user?.nome || 'Usuário'} // CORREÇÃO: usar nome
+                src={state.user?.avatar_url || '/default-avatar.png'}
+                alt={state.user?.nome || 'Usuário'}
                 className="w-12 h-12 rounded-full object-cover"
                 onError={(e) => {
-                  // Fallback caso a imagem não carregue
                   e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(state.user?.nome || 'U')}&background=3b82f6&color=fff`;
                 }}
               />

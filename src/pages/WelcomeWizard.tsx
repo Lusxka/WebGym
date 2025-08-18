@@ -181,7 +181,7 @@ const WelcomeWizard = () => {
             intermediate: 'intermediario',
             advanced: 'avancado'
           };
-          
+
           const genderMapping: { [key: string]: string } = {
             male: 'masculino',
             female: 'feminino'
@@ -190,7 +190,7 @@ const WelcomeWizard = () => {
           const userProfileForDb = {
             id: user.id,
             email: user.email,
-            senha_hash: user.id, // *** CORREÇÃO AQUI: Adicionar um valor de preenchimento ***
+            senha_hash: user.id,
             nome: formData.name,
             idade: parseInt(formData.age),
             peso: parseFloat(formData.weight.replace(',', '.')),
@@ -198,6 +198,7 @@ const WelcomeWizard = () => {
             sexo: genderMapping[formData.gender] || formData.gender,
             objetivo: formData.goal,
             nivel: levelMapping[formData.level] || formData.level,
+            preferencias: JSON.stringify({ language: 'pt_BR' }), // Adiciona um valor padrão
           };
 
           const { error: upsertError } = await supabase
@@ -209,14 +210,18 @@ const WelcomeWizard = () => {
             throw upsertError;
           } else {
             dispatch({ type: 'UPDATE_USER_PROFILE', payload: userProfileForDb });
+
+            // PASSO 2: marcar no localStorage que o wizard já foi concluído
+            localStorage.setItem(`wg_wizard_done_${user.id}`, '1');
           }
 
           dispatch({ type: 'SET_WORKOUT_PLAN', payload: result.workoutPlan });
           dispatch({ type: 'SHOW_WIZARD', payload: false });
+
         } else {
           throw new Error("A resposta da IA não continha um plano de treino válido.");
         }
-        
+
       } catch (error: any) {
         console.error("Falha ao gerar plano:", error);
         setErrorGenerating(`Desculpe, não foi possível gerar seu plano: ${error.message}`);
@@ -463,8 +468,8 @@ const WelcomeWizard = () => {
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, level: level.value }))}
                         className={`p-6 rounded-2xl border-2 transition-all duration-300 hover:scale-105 group ${formData.level === level.value
-                            ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/25'
-                            : 'border-gray-700 hover:border-gray-600 bg-gray-800/50'
+                          ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/25'
+                          : 'border-gray-700 hover:border-gray-600 bg-gray-800/50'
                           }`}
                       >
                         <LevelIcon className={`w-8 h-8 mx-auto mb-3 ${formData.level === level.value ? 'text-purple-400' : 'text-gray-400 group-hover:text-gray-300'
@@ -489,8 +494,8 @@ const WelcomeWizard = () => {
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, goal }))}
                       className={`p-4 rounded-2xl border-2 text-sm font-semibold transition-all duration-300 hover:scale-105 ${formData.goal === goal
-                          ? 'border-blue-500 bg-blue-500/20 text-blue-400 shadow-lg shadow-blue-500/25'
-                          : 'border-gray-700 hover:border-gray-600 text-gray-300 bg-gray-800/50'
+                        ? 'border-blue-500 bg-blue-500/20 text-blue-400 shadow-lg shadow-blue-500/25'
+                        : 'border-gray-700 hover:border-gray-600 text-gray-300 bg-gray-800/50'
                         }`}
                     >
                       {goal}
@@ -587,8 +592,8 @@ const WelcomeWizard = () => {
                       type="button"
                       onClick={() => toggleWorkoutDay(day.key)}
                       className={`p-4 rounded-2xl border-2 text-sm font-bold transition-all duration-300 hover:scale-105 group ${formData.workoutDays.includes(day.key)
-                          ? 'border-orange-500 bg-orange-500/20 text-orange-400 shadow-lg shadow-orange-500/25'
-                          : 'border-gray-700 hover:border-gray-600 text-gray-300 bg-gray-800/50'
+                        ? 'border-orange-500 bg-orange-500/20 text-orange-400 shadow-lg shadow-orange-500/25'
+                        : 'border-gray-700 hover:border-gray-600 text-gray-300 bg-gray-800/50'
                         }`}
                     >
                       <div className="text-base">{day.label}</div>
@@ -786,4 +791,4 @@ const WelcomeWizard = () => {
   );
 };
 
-export default WelcomeWizard; 
+export default WelcomeWizard

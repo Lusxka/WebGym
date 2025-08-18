@@ -1,29 +1,70 @@
-// Arquivo: src/layouts/DashboardLayout.tsx
-import React from 'react';
+// DashboardLayout.tsx
+import React, { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
-
-// Este é basicamente o seu componente DashboardPage, mas sem o conteúdo específico da aba.
-// Você vai mover a lógica da sidebar, header, etc. para cá.
-// Por simplicidade, vou usar o código que já corrigimos.
-
-import { useState } from 'react';
 import { Menu } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Sidebar } from '../components/Sidebar';
 import { Button } from '../components/Button';
-import { WelcomeWizard } from '../pages/WelcomeWizard';
+import WelcomeWizard from '../pages/WelcomeWizard'; // <- default import (ajuste aqui)
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabase';
 
 export const DashboardLayout: React.FC = () => {
-  const { state } = useApp();
-  // A lógica de qual aba está ativa será movida para as páginas filhas ou gerenciada de outra forma
-  // Por enquanto, vamos simplificar
+  const { state, dispatch } = useApp();
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [checkingProfile, setCheckingProfile] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkProfile() {
+      if (!user) {
+        setCheckingProfile(false);
+        return;
+      }
+
+      // Fallback rápido: cache local por usuário
+      const localKey = `wg_wizard_done_${user.id}`;
+      if (localStorage.getItem(localKey) === '1') {
+        if (!cancelled) {
+          dispatch({ type: 'SHOW_WIZARD', payload: false });
+          setCheckingProfile(false);
+        }
+        return;
+      }
+
+      // Checagem no Supabase: se já existir linha em 'usuarios', não mostra o wizard
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select('id') // seleciona mínimo
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error('Erro ao checar perfil:', error);
+        // Se der erro de rede/consulta, você decide: mostrar ou ocultar.
+        // Aqui vou manter visível para garantir onboarding.
+        dispatch({ type: 'SHOW_WIZARD', payload: true });
+      } else {
+        const exists = !!data;
+        dispatch({ type: 'SHOW_WIZARD', payload: !exists });
+        if (exists) localStorage.setItem(localKey, '1');
+      }
+
+      setCheckingProfile(false);
+    }
+
+    checkProfile();
+    return () => { cancelled = true; };
+  }, [user?.id, dispatch]);
 
   return (
     <div className="flex h-screen bg-gray-900 text-gray-100 overflow-hidden">
-      {/* A Sidebar agora faz parte do Layout */}
       <Sidebar
-        activeTab={'dashboard'} // Isso precisaria de uma lógica mais avançada com useLocation
+        activeTab={'dashboard'}
         onTabChange={() => {}}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -43,17 +84,16 @@ export const DashboardLayout: React.FC = () => {
               </Button>
               <h1 className="text-2xl font-bold text-white">WebGym</h1>
             </div>
-            {/* ...código do avatar do usuário... */}
           </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {/* O Outlet renderiza a rota filha aqui! */}
           <Outlet />
         </main>
       </div>
 
-      {state.showWizard && <WelcomeWizard />}
+      {/* Só renderiza o wizard depois da checagem para evitar flicker */}
+      {!checkingProfile && state.showWizard && <WelcomeWizard />}
     </div>
   );
 };

@@ -1,15 +1,15 @@
 // supabase/functions/generate-workout/index.ts
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai'
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from 'https://esm.sh/@google/generative-ai'
 
-// Headers de CORS reutilizáveis para garantir que todas as respostas os tenham
+// Headers de CORS reutilizáveis
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// O prompt especialista continua o mesmo
+// O prompt especialista não muda
 const buildPrompt = (userProfile: any): string => {
   const profileJson = JSON.stringify(userProfile, null, 2);
 
@@ -67,13 +67,16 @@ const buildPrompt = (userProfile: any): string => {
 };
 
 serve(async (req) => {
-  // Tratamento de CORS para a requisição de verificação (preflight)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     const { userProfile } = await req.json();
+
+    if (!userProfile) {
+      throw new Error("Dados do perfil do usuário não fornecidos.");
+    }
 
     const genAI = new GoogleGenerativeAI(Deno.env.get('GEMINI_API_KEY') as string);
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
@@ -86,9 +89,43 @@ serve(async (req) => {
       responseMimeType: 'application/json',
     };
 
+    // *** CORREÇÃO AQUI: Adicionando as configurações de segurança ***
+    const safetySettings = [
+      {
+        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      },
+    ];
+
     const prompt = buildPrompt(userProfile);
-    const result = await model.generateContent(prompt);
+    
+    // Passando a configuração de segurança na chamada
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig,
+      safetySettings,
+    });
+    
     const responseText = result.response.text();
+
+    try {
+      JSON.parse(responseText);
+    } catch (e) {
+      console.error("Erro de parsing do JSON retornado pela IA:", responseText);
+      throw new Error("A IA retornou uma resposta em formato inválido. Tente novamente.");
+    }
 
     return new Response(responseText, {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -96,6 +133,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
+    console.error("Erro na Supabase Function:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

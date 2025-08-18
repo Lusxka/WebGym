@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react'; // Adicionado useEffect
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Check, User, Scale, Target, Calendar, Heart, Dumbbell, Star, Activity, Zap } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabase';
 
 const WelcomeWizard = () => {
   const { dispatch } = useApp();
-  const { session, user } = useAuth(); // Obter também o 'user' para pré-preencher o nome
+  const { session, user } = useAuth();
   const [step, setStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorGenerating, setErrorGenerating] = useState<string | null>(null);
@@ -30,7 +31,6 @@ const WelcomeWizard = () => {
     medications: '',
   });
 
-  // Efeito para pré-preencher o nome do usuário quando o componente carregar
   useEffect(() => {
     if (user?.user_metadata?.full_name) {
       setFormData(prev => ({ ...prev, name: user.user_metadata.full_name }));
@@ -48,8 +48,6 @@ const WelcomeWizard = () => {
     return weightNum / (heightNum * heightNum);
   };
 
-  // Esta função está CORRETA. Ela cria o objeto JSON com os dados do formulário
-  // que serão enviados para a IA analisar.
   const generateUserProfile = () => {
     const bmi = calculateBMI(formData.weight, formData.height);
     let bmiCategory = null;
@@ -144,13 +142,11 @@ const WelcomeWizard = () => {
   };
 
   const handleFinish = async () => {
-    if (validateStep(step)) {
-      // 1. Ativa os indicadores de carregamento
+    if (validateStep(step) && user) {
       setIsGenerating(true);
       setErrorGenerating(null);
       dispatch({ type: 'SET_GENERATING_PLAN', payload: true });
 
-      // 2. Gera o JSON com os dados do formulário e pega a URL da função
       const userProfileObject = JSON.parse(generateUserProfile());
       const functionUrl = import.meta.env.VITE_GEMINI_FUNCTION_URL;
 
@@ -163,43 +159,69 @@ const WelcomeWizard = () => {
       }
 
       try {
-        // 3. Envia os dados para a sua Supabase Function (o backend)
         const response = await fetch(functionUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`, // Envia o token para provar que o usuário está logado
+            'Authorization': `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({ userProfile: userProfileObject }),
         });
 
-        // 4. Verifica se a resposta do backend foi bem-sucedida
         if (!response.ok) {
-          if (response.status === 401) {
-            throw new Error('Não autorizado. Faça o login novamente.');
-          }
           const errorData = await response.json();
           throw new Error(errorData.error || 'Falha ao conectar com a IA.');
         }
 
-        // 5. Se tudo deu certo, pega o resultado (o plano de treino)
         const result = await response.json();
 
-        // 6. Salva o plano de treino no estado global da aplicação
         if (result.workoutPlan) {
+          const levelMapping: { [key: string]: string } = {
+            beginner: 'iniciante',
+            intermediate: 'intermediario',
+            advanced: 'avancado'
+          };
+          
+          const genderMapping: { [key: string]: string } = {
+            male: 'masculino',
+            female: 'feminino'
+          };
+
+          const userProfileForDb = {
+            id: user.id,
+            email: user.email,
+            senha_hash: user.id, // *** CORREÇÃO AQUI: Adicionar um valor de preenchimento ***
+            nome: formData.name,
+            idade: parseInt(formData.age),
+            peso: parseFloat(formData.weight.replace(',', '.')),
+            altura: parseFloat(formData.height.replace(',', '.')),
+            sexo: genderMapping[formData.gender] || formData.gender,
+            objetivo: formData.goal,
+            nivel: levelMapping[formData.level] || formData.level,
+          };
+
+          const { error: upsertError } = await supabase
+            .from('usuarios')
+            .upsert(userProfileForDb);
+
+          if (upsertError) {
+            console.error("Erro ao guardar o perfil do utilizador:", upsertError);
+            throw upsertError;
+          } else {
+            dispatch({ type: 'UPDATE_USER_PROFILE', payload: userProfileForDb });
+          }
+
           dispatch({ type: 'SET_WORKOUT_PLAN', payload: result.workoutPlan });
+          dispatch({ type: 'SHOW_WIZARD', payload: false });
+        } else {
+          throw new Error("A resposta da IA não continha um plano de treino válido.");
         }
         
-        // 7. Esconde o formulário wizard
-        dispatch({ type: 'SHOW_WIZARD', payload: false });
-
       } catch (error: any) {
-        // Em caso de qualquer erro, exibe um alerta
         console.error("Falha ao gerar plano:", error);
         setErrorGenerating(`Desculpe, não foi possível gerar seu plano: ${error.message}`);
         alert(`Ocorreu um erro ao gerar seu plano. Por favor, tente novamente.\nDetalhes: ${error.message}`);
       } finally {
-        // 8. Desativa os indicadores de carregamento, independente do resultado
         setIsGenerating(false);
         dispatch({ type: 'SET_GENERATING_PLAN', payload: false });
       }
@@ -764,4 +786,4 @@ const WelcomeWizard = () => {
   );
 };
 
-export default WelcomeWizard;
+export default WelcomeWizard; 

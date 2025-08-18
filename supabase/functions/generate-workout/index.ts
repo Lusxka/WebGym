@@ -3,66 +3,52 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from 'https://esm.sh/@google/generative-ai'
 
-// Headers de CORS reutilizáveis
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// O prompt especialista não muda
 const buildPrompt = (userProfile: any): string => {
   const profileJson = JSON.stringify(userProfile, null, 2);
-
+  // *** PROMPT FINAL: Mais técnico e direto para forçar o formato. ***
   return `
-    **PERSONA:** Você é o "Dr. Hipertrofia", o mais renomado especialista em fitness e nutrição do mundo, com décadas de experiência na criação de planos personalizados para atletas de elite e entusiastas. Sua abordagem é científica, segura, motivadora e altamente detalhada. Você se comunica de forma clara e inspiradora.
-
-    **TAREFA:** Seu novo cliente preencheu um formulário detalhado. Analise CUIDADOSAMENTE os dados do perfil do usuário fornecidos abaixo em formato JSON e crie um plano de treino E um plano nutricional perfeitamente alinhados com suas informações, objetivos e limitações.
-
-    **DADOS DO CLIENTE:**
+    **TASK:** Analyze the user data and generate a workout and nutrition plan.
+    **INPUT_DATA:**
     \`\`\`json
     ${profileJson}
     \`\`\`
 
-    **REGRAS DE SAÍDA OBRIGATÓRIAS:**
-    1.  **FORMATO:** Sua resposta DEVE ser um único e válido objeto JSON. Não inclua NENHUM texto, explicação ou formatação markdown (como \`\`\`json) antes ou depois do objeto JSON.
-    2.  **ESTRUTURA DO JSON:** O JSON de saída deve seguir EXATAMENTE a seguinte estrutura:
+    **OUTPUT_RULES:**
+    1.  **RESPONSE_TYPE:** Your entire output MUST be a single, valid JSON object. Do not include any text, markdown, or explanations outside of the JSON structure.
+    2.  **JSON_SCHEMA:** The output JSON object MUST strictly adhere to the following schema:
         \`\`\`json
         {
           "workoutPlan": [
             {
-              "day": "monday",
-              "name": "Peito & Tríceps - Foco em Força",
-              "icon": "Dumbbell",
+              "day": "string (e.g., 'monday')",
+              "name": "string",
+              "icon": "string ('Dumbbell', 'Target', 'Zap', or 'Award')",
               "completed": false,
               "exercises": [
-                { "id": "ex1", "name": "Supino Reto com Barra", "sets": "4", "reps": "6-8", "rest": "90s", "completed": false, "videoUrl": null, "observation": "Foco na execução lenta e controlada." },
-                { "id": "ex2", "name": "Crucifixo Inclinado com Halteres", "sets": "3", "reps": "10-12", "rest": "60s", "completed": false, "videoUrl": null, "observation": "Alongue bem o peitoral no final do movimento." }
+                { "id": "string (e.g., 'ex1')", "name": "string", "sets": "string", "reps": "string", "rest": "string", "completed": false, "videoUrl": null, "observation": "string" }
               ]
             }
           ],
           "nutritionPlan": {
-            "summary": "Um plano focado em alta proteína para suportar a hipertrofia e carboidratos complexos para energia, com cerca de 2500 kcal.",
+            "summary": "string",
             "meals": [
-              { "name": "Café da Manhã", "time": "08:00", "options": ["Ovos mexidos com aveia e uma fruta.", "Shake de whey protein com banana e pasta de amendoim."] },
-              { "name": "Almoço", "time": "13:00", "options": ["Frango grelhado, arroz integral, brócolis e salada.", "Salmão assado com batata doce e aspargos."] },
-              { "name": "Jantar", "time": "20:00", "options": ["Patino moído com purê de mandioquinha e legumes.", "Omelete com queijo cottage e salada verde."] }
+              { "name": "string", "time": "string (HH:MM)", "options": ["string", "string"] }
             ]
           },
-          "initialMessage": "Olá, [NOME DO USUÁRIO]! Eu sou o Dr. Hipertrofia. Analisei seus dados e preparei um plano inicial poderoso para esmagarmos seus objetivos. Vamos juntos nessa jornada!"
+          "initialMessage": "string"
         }
         \`\`\`
-    3.  **PLANO DE TREINO (\`workoutPlan\`):**
-        * Crie um plano para CADA dia selecionado em \`preferredWorkoutDays\`.
-        * Para dias de descanso, inclua um objeto com o "day", "name" como "Descanso" e um array de "exercises" vazio.
-        * Os ícones podem ser: 'Dumbbell', 'Target', 'Zap', 'Award'. Escolha o que fizer mais sentido.
-        * Seja específico nos nomes dos exercícios, séries, repetições e descanso. Adicione uma observação útil para cada exercício.
-    4.  **PLANO NUTRICIONAL (\`nutritionPlan\`):**
-        * Forneça um resumo claro do plano.
-        * Sugira pelo menos 3 refeições principais com 2 opções cada.
-    5.  **MENSAGEM INICIAL (\`initialMessage\`):**
-        * Escreva uma mensagem de boas-vindas curta, profissional e motivadora, usando o nome do cliente.
+    3.  **WORKOUT_PLAN_LOGIC:**
+        - Create a "workoutPlan" array entry for each day listed in the user's "preferredWorkoutDays".
+        - For rest days, set "name" to "Descanso" and provide an empty "exercises" array.
+        - Populate all fields for each exercise.
 
-    **ANÁLISE E AÇÃO:** Agora, com base em todas essas informações, analise o perfil do cliente e gere o plano completo no formato JSON exato solicitado.
+    **EXECUTE_TASK:** Analyze INPUT_DATA and generate the response following all OUTPUT_RULES precisely.
   `;
 };
 
@@ -78,40 +64,31 @@ serve(async (req) => {
       throw new Error("Dados do perfil do usuário não fornecidos.");
     }
 
-    const genAI = new GoogleGenerativeAI(Deno.env.get('GEMINI_API_KEY') as string);
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!apiKey) {
+        throw new Error("A chave de API não está configurada no servidor.");
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
 
     const generationConfig = {
-      temperature: 0.7,
+      temperature: 0.5, // Reduzido para menos criatividade e mais precisão
       topK: 1,
       topP: 1,
       maxOutputTokens: 8192,
       responseMimeType: 'application/json',
     };
 
-    // *** CORREÇÃO AQUI: Adicionando as configurações de segurança ***
     const safetySettings = [
-      {
-        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-        threshold: HarmBlockThreshold.BLOCK_NONE,
-      },
-      {
-        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-        threshold: HarmBlockThreshold.BLOCK_NONE,
-      },
-      {
-        category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-        threshold: HarmBlockThreshold.BLOCK_NONE,
-      },
-      {
-        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-        threshold: HarmBlockThreshold.BLOCK_NONE,
-      },
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
     ];
 
     const prompt = buildPrompt(userProfile);
     
-    // Passando a configuração de segurança na chamada
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig,
@@ -119,12 +96,14 @@ serve(async (req) => {
     });
     
     const responseText = result.response.text();
+    
+    console.log("Conteúdo da resposta da IA:", responseText);
 
     try {
       JSON.parse(responseText);
-    } catch (e) {
-      console.error("Erro de parsing do JSON retornado pela IA:", responseText);
-      throw new Error("A IA retornou uma resposta em formato inválido. Tente novamente.");
+    } catch (e: any) {
+      console.error("ERRO CRÍTICO: A resposta da IA não é um JSON válido.", e.message);
+      throw new Error("A IA retornou uma resposta em formato inválido.");
     }
 
     return new Response(responseText, {
@@ -132,8 +111,8 @@ serve(async (req) => {
       status: 200,
     });
 
-  } catch (error) {
-    console.error("Erro na Supabase Function:", error);
+  } catch (error: any) {
+    console.error("ERRO NO BLOCO CATCH PRINCIPAL:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

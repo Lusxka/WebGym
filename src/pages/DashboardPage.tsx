@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { Menu } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Sidebar } from '../components/Sidebar';
+
+// Importação de todas as abas, incluindo a GenerateTab
 import { DashboardTab } from '../components/tabs/DashboardTab';
+import { GenerateTab } from '../components/tabs/GenerateTab'; // 1. Importar a GenerateTab
 import { WorkoutTab } from '../components/tabs/WorkoutTab';
 import { DietTab } from '../components/tabs/DietTab';
 import { GoalsTab } from '../components/tabs/GoalsTab';
@@ -13,8 +16,10 @@ import { FriendsTab } from '../components/tabs/FriendsTab';
 import WelcomeWizard from './WelcomeWizard';
 import { Button } from '../components/Button';
 
+// Mapa que associa o ID da aba ao seu respectivo componente
 const tabComponents: { [key: string]: React.FC<any> } = {
   dashboard: DashboardTab,
+  generate: GenerateTab, // 2. Adicionar a GenerateTab ao mapa
   workout: WorkoutTab,
   diet: DietTab,
   goals: GoalsTab,
@@ -34,9 +39,9 @@ export const DashboardPage: React.FC = () => {
     setSidebarOpen(false);
   };
 
+  // Seleciona o componente correto com base na aba ativa
   const ActiveTabComponent = tabComponents[activeTab] || DashboardTab;
 
-  // Mostra um loader enquanto os dados do usuário estão sendo carregados
   if (state.loading) {
     return <div className="flex h-screen w-full items-center justify-center bg-gray-900 text-white">Carregando perfil...</div>;
   }
@@ -78,7 +83,6 @@ export const DashboardPage: React.FC = () => {
             
             <div className="flex items-center gap-3">
               <img
-                // Agora usa o nome do perfil do banco de dados
                 src={state.user?.avatar_url || `https://ui-avatars.com/api/?name=${state.user?.nome}&background=0D8ABC&color=fff`}
                 alt={state.user?.nome}
                 className="w-10 h-10 rounded-full object-cover border-2 border-gray-600"
@@ -91,6 +95,7 @@ export const DashboardPage: React.FC = () => {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          {/* 3. Lógica de renderização simplificada e corrigida */}
           {activeTab === 'dashboard' ? (
             <DashboardTab onNavigate={handleNavigateToTab} />
           ) : (
@@ -99,7 +104,6 @@ export const DashboardPage: React.FC = () => {
         </main>
       </div>
 
-      {/* O Wizard será exibido com base no estado do AppContext */}
       {state.showWizard && <WelcomeWizard />}
     </div>
   );

@@ -43,6 +43,7 @@ interface AppState {
   loading: boolean;
   workoutPlan: WorkoutPlan[] | null;
   isGeneratingPlan: boolean;
+  hasCompletedProfile: boolean;
 }
 
 type Action =
@@ -52,7 +53,8 @@ type Action =
   | { type: 'SHOW_WIZARD'; payload: boolean }
   | { type: 'UPDATE_USER_PROFILE'; payload: Partial<UserProfile> }
   | { type: 'SET_WORKOUT_PLAN'; payload: WorkoutPlan[] }
-  | { type: 'SET_GENERATING_PLAN'; payload: boolean };
+  | { type: 'SET_GENERATING_PLAN'; payload: boolean }
+  | { type: 'SET_PROFILE_COMPLETED'; payload: boolean };
 
 // Estado inicial seguro para evitar erros
 const initialState: AppState = {
@@ -62,6 +64,7 @@ const initialState: AppState = {
   loading: true,
   workoutPlan: null,
   isGeneratingPlan: false,
+  hasCompletedProfile: false,
 };
 
 const appReducer = (state: AppState, action: Action): AppState => {
@@ -91,6 +94,8 @@ const appReducer = (state: AppState, action: Action): AppState => {
       return { ...state, workoutPlan: action.payload };
     case 'SET_GENERATING_PLAN':
       return { ...state, isGeneratingPlan: action.payload };
+    case 'SET_PROFILE_COMPLETED':
+      return { ...state, hasCompletedProfile: action.payload };
     default:
       return state;
   }
@@ -111,8 +116,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const fetchUserProfile = async () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const handleFetchError = () => {
-        // Se o perfil não existe ou deu erro, cria um estado temporário seguro e mostra o wizard
+      const createTemporaryProfile = () => {
+        // Cria um estado temporário seguro sem mostrar o wizard automaticamente
         const temporaryProfile: UserProfile = {
           id: authUser.id,
           nome: authUser.user_metadata?.full_name || authUser.email || 'Novo Usuário',
@@ -126,7 +131,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           criado_em: new Date().toISOString()
         };
         dispatch({ type: 'LOGIN_SUCCESS', payload: temporaryProfile });
-        dispatch({ type: 'SHOW_WIZARD', payload: true });
+        dispatch({ type: 'SET_PROFILE_COMPLETED', payload: false });
       };
 
       try {
@@ -138,7 +143,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (error) {
             console.warn("Erro ao buscar perfil:", error.message);
-            handleFetchError();
+            createTemporaryProfile();
         } else if (data) {
           const profileData = {
             ...data,
@@ -146,16 +151,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           };
           
           dispatch({ type: 'LOGIN_SUCCESS', payload: profileData });
-          if (!data.nome || !data.objetivos) {
-            dispatch({ type: 'SHOW_WIZARD', payload: true });
-          }
+          
+          // Verifica se o perfil está completo (tem pelo menos nome e objetivos)
+          const isProfileComplete = !!(data.nome && data.objetivos);
+          dispatch({ type: 'SET_PROFILE_COMPLETED', payload: isProfileComplete });
         } else {
-            console.log("Usuário não encontrado, criando perfil temporário");
-            handleFetchError();
+            console.log("Usuário não encontrado na base de dados");
+            createTemporaryProfile();
         }
       } catch (err) {
         console.error('Falha crítica ao processar o perfil do usuário:', err);
-        handleFetchError();
+        createTemporaryProfile();
       }
     };
 

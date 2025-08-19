@@ -37,7 +37,6 @@ const WelcomeWizard = () => {
     }
   }, [user]);
 
-
   const [errors, setErrors] = useState<any>({});
   const totalSteps = 6;
 
@@ -190,7 +189,7 @@ const WelcomeWizard = () => {
           const userProfileForDb = {
             id: user.id,
             email: user.email,
-            senha_hash: user.id, // *** CORREÇÃO AQUI: Adicionar um valor de preenchimento ***
+            senha_hash: user.id,
             nome: formData.name,
             idade: parseInt(formData.age),
             peso: parseFloat(formData.weight.replace(',', '.')),
@@ -209,10 +208,17 @@ const WelcomeWizard = () => {
             throw upsertError;
           } else {
             dispatch({ type: 'UPDATE_USER_PROFILE', payload: userProfileForDb });
+            // Marca o perfil como completo
+            dispatch({ type: 'SET_PROFILE_COMPLETED', payload: true });
           }
 
           dispatch({ type: 'SET_WORKOUT_PLAN', payload: result.workoutPlan });
+          
+          // Fecha o wizard
           dispatch({ type: 'SHOW_WIZARD', payload: false });
+          
+          // Mostra mensagem de sucesso
+          alert('🎉 Seu plano personalizado foi gerado com sucesso!');
         } else {
           throw new Error("A resposta da IA não continha um plano de treino válido.");
         }
@@ -226,6 +232,10 @@ const WelcomeWizard = () => {
         dispatch({ type: 'SET_GENERATING_PLAN', payload: false });
       }
     }
+  };
+
+  const handleClose = () => {
+    dispatch({ type: 'SHOW_WIZARD', payload: false });
   };
 
   const toggleWorkoutDay = (day: string) => {
@@ -705,13 +715,23 @@ const WelcomeWizard = () => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-y-auto">
+      <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-y-auto z-50">
         <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0" style={{ backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`, backgroundSize: '50px 50px' }}></div>
         </div>
         <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
           <div className="w-full max-w-4xl">
             <div className="bg-gray-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-700/50 overflow-hidden">
+              {/* Botão fechar */}
+              <div className="absolute top-4 right-4 z-10">
+                <button
+                  onClick={handleClose}
+                  className="w-8 h-8 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-all duration-200"
+                >
+                  ×
+                </button>
+              </div>
+              
               <div className="px-8 py-6 bg-gray-800/50">
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-3">

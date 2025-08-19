@@ -1,19 +1,20 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { 
-  Home, 
-  Dumbbell, 
-  Apple, 
-  Target, 
-  Droplets, 
-  Settings, 
-  Zap, 
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Home,
+  Dumbbell,
+  Target,
+  Calendar,
+  Droplets,
+  Zap,
   Users,
-  LogOut
+  Settings,
+  X,
+  Wand2,
+  LogOut // 1. Importado o ícone correto de LogOut
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { useTranslation } from '../data/translations';
-import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   activeTab: string;
@@ -22,146 +23,158 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClose }) => {
-  const { state, dispatch } = useApp();
-  
-  // CORREÇÃO: Parse seguro das preferências e fallback para idioma padrão
-  const getLanguageFromPreferences = (): 'pt_BR' | 'en_US' => {
-    try {
-      const prefs = state.user?.preferencias;
+// 2. Componente interno que contém toda a lógica e JSX da sidebar
+const SidebarContent: React.FC<Omit<SidebarProps, 'isOpen'>> = ({
+  activeTab,
+  onTabChange,
+  onClose,
+}) => {
+  const { signOut } = useAuth();
+  const { state } = useApp();
 
-      if (!prefs) return 'pt_BR';
-
-      // Se já for objeto
-      if (typeof prefs === 'object') {
-        return prefs.language || 'pt_BR';
-      }
-
-      // Se for string, tenta parsear
-      if (typeof prefs === 'string') {
-        const parsed = JSON.parse(prefs);
-        return parsed.language || 'pt_BR';
-      }
-
-      return 'pt_BR';
-    } catch (error) {
-      console.warn('Erro ao fazer parse das preferências:', error);
-      return 'pt_BR';
-    }
-  };
-  
-  const t = useTranslation(getLanguageFromPreferences());
-  const isDesktop = useMediaQuery('(min-width: 1024px)');
-
-  const menuItems = [
-    { id: 'dashboard', icon: Home, label: t('dashboard') },
-    { id: 'workout', icon: Dumbbell, label: t('myWorkout') },
-    { id: 'diet', icon: Apple, label: t('myDiet') },
-    { id: 'goals', icon: Target, label: t('dailyGoals') },
-    { id: 'water', icon: Droplets, label: t('waterGoals') },
-    { id: 'intensive', icon: Zap, label: t('intensiveMode') },
-    { id: 'friends', icon: Users, label: t('friends') },
-    { id: 'settings', icon: Settings, label: t('settings') },
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'generate', label: 'Gerar', icon: Wand2, highlight: !state.hasCompletedProfile },
+    { id: 'workout', label: 'Treinos', icon: Dumbbell },
+    { id: 'diet', label: 'Dieta', icon: Target },
+    { id: 'goals', label: 'Metas', icon: Calendar },
+    { id: 'water', label: 'Hidratação', icon: Droplets },
+    { id: 'intensive', label: 'Modo Intensivo', icon: Zap },
+    { id: 'friends', label: 'Amigos', icon: Users },
+    { id: 'settings', label: 'Configurações', icon: Settings },
   ];
 
-  const handleLogout = () => {
-    dispatch({ type: 'LOGOUT' });
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    }
   };
 
   return (
-    <>
-      {/* Mobile overlay */}
-      {isOpen && !isDesktop && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-6 border-b border-gray-700">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <Dumbbell className="w-5 h-5 text-white" />
+          </div>
+          <span className="text-xl font-bold text-white">WebGym</span>
+        </div>
+        <button
           onClick={onClose}
-        />
-      )}
+          className="lg:hidden p-2 rounded-lg hover:bg-gray-700 transition-colors"
+        >
+          <X className="w-5 h-5 text-gray-400" />
+        </button>
+      </div>
 
-      {/* Sidebar */}
-      <motion.div
-        initial={false}
-        animate={{ x: isDesktop ? 0 : (isOpen ? 0 : -280) }} 
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="fixed left-0 top-0 z-50 h-full w-72 bg-gray-900 border-r border-gray-700 lg:relative lg:translate-x-0 lg:z-auto"
-      >
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="p-6 border-b border-gray-700">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Dumbbell size={24} className="text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">WebGym</span>
-            </div>
-          </div>
-
-          {/* User info */}
-          <div className="p-6 border-b border-gray-700">
-            <div className="flex items-center gap-3">
-              <img
-                src={state.user?.avatar_url || '/default-avatar.png'}
-                alt={state.user?.nome || 'Usuário'}
-                className="w-12 h-12 rounded-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(state.user?.nome || 'U')}&background=3b82f6&color=fff`;
-                }}
-              />
-              <div>
-                <p className="text-white font-medium">{state.user?.nome || 'Carregando...'}</p>
-                <p className="text-gray-400 text-sm">{state.user?.id ? 'Usuário ativo' : 'Carregando...'}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 p-4 overflow-y-auto">
-            <ul className="space-y-2">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.id;
-                
-                return (
-                  <li key={item.id}>
-                    <motion.button
-                      whileHover={{ x: isDesktop ? 4 : 0 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => {
-                        onTabChange(item.id);
-                        onClose();
-                      }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                        isActive 
-                          ? 'bg-blue-600 text-white shadow-lg' 
-                          : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                      }`}
-                    >
-                      <Icon size={20} />
-                      <span className="font-medium">{item.label}</span>
-                    </motion.button>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-
-          {/* Logout button */}
-          <div className="p-4 border-t border-gray-700">
-            <motion.button
-              whileHover={{ x: isDesktop ? 4 : 0 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-900/20 hover:text-red-300 transition-all duration-200"
-            >
-              <LogOut size={20} />
-              <span className="font-medium">{t('logout')}</span>
-            </motion.button>
+      {/* User Info */}
+      <div className="p-6 border-b border-gray-700">
+        <div className="flex items-center gap-4">
+          <img
+            src={state.user?.avatar_url || `https://ui-avatars.com/api/?name=${state.user?.nome}&background=0D8ABC&color=fff`}
+            alt={state.user?.nome || 'Usuário'}
+            className="w-12 h-12 rounded-full object-cover border-2 border-gray-600"
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-medium truncate">
+              {state.user?.nome || 'Usuário'}
+            </p>
+            <p className="text-sm text-gray-400 truncate">
+              {state.hasCompletedProfile ? 'Perfil completo' : 'Complete seu perfil'}
+            </p>
           </div>
         </div>
-      </motion.div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 p-4 overflow-y-auto">
+        <div className="space-y-2">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            const isHighlighted = tab.highlight;
+
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  onTabChange(tab.id);
+                  onClose();
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                } ${isHighlighted ? 'ring-2 ring-orange-400/50 bg-orange-500/10' : ''}`}
+              >
+                <Icon className={`w-5 h-5 ${isActive ? 'text-white' : isHighlighted ? 'text-orange-400' : 'text-gray-400'}`} />
+                <span className="font-medium">{tab.label}</span>
+                {isHighlighted && (
+                  <span className="ml-auto flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-orange-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-gray-700">
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-300 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-200"
+        >
+          <LogOut className="w-5 h-5" />
+          <span className="font-medium">Sair</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
+// 3. Componente principal exportado, agora muito mais simples
+export const Sidebar: React.FC<SidebarProps> = ({
+  activeTab,
+  onTabChange,
+  isOpen,
+  onClose,
+}) => {
+  return (
+    <>
+      {/* Sidebar Mobile (renderizada condicionalmente com animação) */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ x: -300 }}
+            animate={{ x: 0 }}
+            exit={{ x: -300 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="fixed inset-y-0 left-0 z-50 w-80 bg-gray-800 border-r border-gray-700 lg:hidden"
+          >
+            <SidebarContent
+              activeTab={activeTab}
+              onTabChange={onTabChange}
+              onClose={onClose}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar Desktop (sempre visível em telas grandes) */}
+      <div className="hidden lg:flex lg:w-80 lg:flex-col bg-gray-800 border-r border-gray-700">
+        <SidebarContent
+          activeTab={activeTab}
+          onTabChange={onTabChange}
+          onClose={onClose}
+        />
+      </div>
     </>
   );
 };

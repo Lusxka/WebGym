@@ -11,8 +11,11 @@ export interface UserProfile {
     altura: number | null;
     sexo: 'masculino' | 'feminino' | null;
     objetivo: string | null;
+    // CORREÇÃO: Adicione as novas colunas para compartilhamento
+    compartilhar_treinos: boolean;
+    compartilhar_dietas: boolean;
     preferencias: string | null;
-    nivel: 'iniciante' | 'intermediario' | 'avancado' | null; // CORREÇÃO AQUI
+    nivel: 'iniciante' | 'intermediario' | 'avancado' | null;
     criado_em: string;
     avatar_url?: string;
 }

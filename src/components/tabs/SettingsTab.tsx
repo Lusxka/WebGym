@@ -8,8 +8,6 @@ import { useTranslation } from '../../data/translations';
 import { UserProfile } from '../../context/AppContext';
 
 interface UserPreferences {
-    shareWorkouts: boolean;
-    shareDiets: boolean;
     darkMode: boolean;
     language: 'pt_BR' | 'en_US';
 }
@@ -25,7 +23,7 @@ export const SettingsTab: React.FC = () => {
                 return JSON.parse(state.user.preferencias);
             }
         } catch (error) { console.error("Falha ao fazer parse das preferências:", error); }
-        return { shareWorkouts: false, shareDiets: false, darkMode: true, language: 'pt_BR' };
+        return { darkMode: true, language: 'pt_BR' };
     }, [state.user?.preferencias]);
 
     const t = useTranslation(parsedPreferences.language);
@@ -36,27 +34,40 @@ export const SettingsTab: React.FC = () => {
         peso: state.user?.peso?.toString() || '',
         altura: state.user?.altura?.toString() || '',
         sexo: state.user?.sexo || 'masculino',
-        nivel: state.user?.nivel || 'iniciante', // CORREÇÃO: Valor inicial em português
+        nivel: state.user?.nivel || 'iniciante',
         // CORREÇÃO: Altera 'objetivos' para 'objetivo'
         objetivo: (state.user as UserProfile)?.objetivo || '',
     });
 
-    const [preferences, setPreferences] = useState<UserPreferences>(parsedPreferences);
+    // CORREÇÃO: Inicializa o estado com os novos campos diretamente do perfil do usuário
+    const [preferences, setPreferences] = useState({
+        shareWorkouts: state.user?.compartilhar_treinos ?? false,
+        shareDiets: state.user?.compartilhar_dietas ?? false,
+        darkMode: parsedPreferences.darkMode,
+        language: parsedPreferences.language,
+    });
 
     // Efeito para sincronizar o formulário se o estado global mudar (ex: após salvar)
     useEffect(() => {
         if (state.user) {
+            const currentParsedPreferences = state.user.preferencias ? JSON.parse(state.user.preferencias) : {};
             setFormData({
                 nome: state.user.nome || '',
                 idade: state.user.idade?.toString() || '',
                 peso: state.user.peso?.toString() || '',
                 altura: state.user.altura?.toString() || '',
                 sexo: state.user.sexo || 'masculino',
-                nivel: state.user.nivel || 'iniciante', // CORREÇÃO: Valor inicial em português
+                nivel: state.user.nivel || 'iniciante',
                 // CORREÇÃO: Altera 'objetivos' para 'objetivo'
                 objetivo: state.user.objetivo || '',
             });
-            setPreferences(parsedPreferences);
+            // CORREÇÃO: Sincroniza o estado das preferências com os novos campos do usuário
+            setPreferences({
+                shareWorkouts: state.user.compartilhar_treinos ?? false,
+                shareDiets: state.user.compartilhar_dietas ?? false,
+                darkMode: currentParsedPreferences.darkMode ?? false,
+                language: currentParsedPreferences.language ?? 'pt_BR',
+            });
         }
     }, [state.user, parsedPreferences]);
 
@@ -64,16 +75,22 @@ export const SettingsTab: React.FC = () => {
     const handleSave = async () => {
         setIsLoading(true);
         try {
-            // CORREÇÃO: Altera 'objetivos' para 'objetivo'
+            // CORREÇÃO: Envia os novos campos de compartilhamento separadamente
             await updateUserProfile({
                 nome: formData.nome,
                 idade: formData.idade ? parseInt(formData.idade) : null,
                 peso: formData.peso ? parseFloat(formData.peso) : null,
                 altura: formData.altura ? parseInt(formData.altura) : null,
-                sexo: formData.sexo as 'masculino' | 'feminino' | 'outro',
-                nivel: formData.nivel as 'iniciante' | 'intermediario' | 'avancado', // CORREÇÃO: Tipagem em português
+                sexo: formData.sexo,
+                nivel: formData.nivel,
                 objetivo: formData.objetivo,
-                preferencias: JSON.stringify(preferences),
+                compartilhar_treinos: preferences.shareWorkouts,
+                compartilhar_dietas: preferences.shareDiets,
+                // A coluna 'preferencias' agora salva apenas as preferências restantes
+                preferencias: JSON.stringify({
+                    darkMode: preferences.darkMode,
+                    language: preferences.language
+                }),
             });
             alert('Perfil salvo com sucesso!');
         } catch (error) {

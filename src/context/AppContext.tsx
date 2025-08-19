@@ -114,6 +114,22 @@ const initialState: AppState = {
   weeklyProgress: [],
 };
 
+// CORREÇÃO: Função auxiliar para padronizar o nome do dia da semana, removendo acentos.
+// Essa função agora também está presente em AppContext para garantir a consistência
+// na chamada de dados.
+const getNormalizedDayName = (date: Date): string => {
+  const dayName = date.toLocaleString('pt-BR', { weekday: 'long' }).replace('-feira', '');
+  // Mapeia dias com acentos para versões sem
+  switch (dayName.toLowerCase()) {
+    case 'terça':
+      return 'terca';
+    case 'sábado':
+      return 'sabado';
+    default:
+      return dayName;
+  }
+};
+
 // Reducer (Seu código original completo)
 const appReducer = (state: AppState, action: Action): AppState => {
   switch (action.type) {
@@ -258,7 +274,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       dispatch({ type: 'LOGIN_SUCCESS', payload: userProfile });
       
       const todayISO = new Date().toISOString().slice(0, 10);
-      const todayDayName = new Date().toLocaleString('pt-BR', { weekday: 'long' }).replace('-feira', '');
+      const todayDayName = getNormalizedDayName(new Date()); // CORREÇÃO: Usa a função de normalização aqui
       const weekDays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
 
       const { data: allWorkoutPlans } = await supabase.from('planos_treino').select('id, dia_semana').eq('usuario_id', authUser.id);
@@ -285,6 +301,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       let dietProgress = 0;
+      // CORREÇÃO: Usa a variável 'todayDayName' já normalizada para a busca na API
       const { data: dietPlanToday } = await supabase.from('planos_dieta').select(`id, refeicoes_dieta ( id, nome, horario, descricao, calorias, confirmada )`).eq('usuario_id', authUser.id).eq('dia_semana', todayDayName).maybeSingle();
       if (dietPlanToday && dietPlanToday.refeicoes_dieta) {
         const meals = dietPlanToday.refeicoes_dieta as any[];

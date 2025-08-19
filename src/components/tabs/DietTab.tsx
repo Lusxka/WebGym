@@ -1,19 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Apple, Clock, Zap, Check } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Card } from '../Card';
 import { Button } from '../Button';
 import { useTranslation } from '../../data/translations';
+import { UserProfile } from '../../context/AppContext';
+
+// Adicionando a interface UserPreferences para uso local
+interface UserPreferences {
+  shareWorkouts: boolean;
+  shareDiets: boolean;
+  darkMode: boolean;
+  language: 'pt_BR' | 'en_US';
+}
+
+// CORREÇÃO: Função auxiliar para padronizar o nome do dia da semana, removendo acentos.
+const getNormalizedDayName = (date: Date): string => {
+  const dayName = date.toLocaleString('pt-BR', { weekday: 'long' }).replace('-feira', '');
+  // Mapeia dias com acentos para versões sem
+  switch (dayName.toLowerCase()) {
+    case 'terça':
+      return 'terca';
+    case 'sábado':
+      return 'sabado';
+    default:
+      return dayName;
+  }
+};
 
 export const DietTab: React.FC = () => {
   // Pega a nova função 'confirmMeal' do contexto, não precisamos mais do dispatch aqui.
   const { state, confirmMeal } = useApp();
-  const t = useTranslation(state.user?.preferences?.language);
   const [isLoading, setIsLoading] = useState<string | null>(null); // Controla o loading por botão
 
-  // Determina o dia da semana atual dinamicamente
-  const todayDayName = new Date().toLocaleString('pt-BR', { weekday: 'long' }).replace('-feira', '');
+  // CORREÇÃO: Analisa a string de preferências para obter o objeto e o idioma correto.
+  const parsedPreferences = useMemo((): UserPreferences => {
+    try {
+      if (state.user?.preferencias && typeof state.user.preferencias === 'string') {
+        return JSON.parse(state.user.preferencias);
+      }
+    } catch (error) {
+      console.error("Falha ao fazer parse das preferências:", error);
+    }
+    // Retorna um valor padrão caso não consiga fazer o parse ou não exista.
+    return { shareWorkouts: false, shareDiets: false, darkMode: true, language: 'pt_BR' };
+  }, [state.user?.preferencias]);
+
+  const t = useTranslation(parsedPreferences.language);
+
+  // CORREÇÃO: Usa a nova função para obter o dia da semana sem acentos
+  const todayDayName = getNormalizedDayName(new Date());
   
   // Encontra o plano de dieta para o dia de hoje no estado global
   const todayDiet = state.dietPlan?.find(d => d.day.toLowerCase() === todayDayName.toLowerCase());

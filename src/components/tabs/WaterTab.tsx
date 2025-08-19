@@ -67,7 +67,8 @@ export const WaterTab: React.FC = () => {
   const goal = state.waterIntake?.goal || 1;
   const progressPercentage = (consumed / goal) * 100;
   const remainingWater = Math.max(0, goal - consumed);
-  const quickAmounts = [250, 500, 750];
+  // AQUI A MUDANÇA: Adicionado 1000ml (1L) ao array
+  const quickAmounts = [250, 500, 750, 1000];
 
   return (
     <div className="space-y-6">
@@ -124,7 +125,7 @@ export const WaterTab: React.FC = () => {
               disabled={isLoading || consumed >= goal} // Desabilita durante o loading
             >
               <Plus size={20} className="mb-1" />
-              {amount}ml
+              {amount === 1000 ? '1L' : `${amount}ml`}
             </Button>
           ))}
         </div>

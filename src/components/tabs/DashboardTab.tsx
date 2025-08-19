@@ -1,82 +1,94 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, Target, Droplets, Zap, Dumbbell, ChevronRight } from 'lucide-react';
+import { useApp } from '../../context/AppContext'; // Certifique-se que o caminho está correto
+import { Card } from '../Card'; // Importe seus componentes reutilizáveis
+import { ProgressBar } from '../ProgressBar'; // Importe seus componentes reutilizáveis
 
-// --- Início dos Mocks e Componentes Auxiliares ---
-// Em um projeto real, estes seriam importados de seus respectivos arquivos.
-// Eles estão aqui para que o componente funcione de forma autônoma.
+// A interface 'onNavigate' define o tipo da prop para navegação
+interface DashboardTabProps {
+  onNavigate: (tabKey: string) => void;
+}
 
-const useApp = () => ({
-  state: {
-    user: { name: 'Dimas', preferences: { language: 'pt-BR' } },
-    dailyGoals: { workout: 75, diet: 90 },
-    waterIntake: { consumed: 1500, goal: 3000 },
-    intensiveMode: { consecutiveDays: 12, intensity: 80 },
-  }
-});
-
-const Card = ({ children, className = '' }) => (
-    <div className={`bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-2xl ${className}`}>
-        {children}
-    </div>
-);
-
-const ProgressBar = ({ progress, color }) => (
-    <div className="w-full bg-gray-700 rounded-full h-2">
-        <div className={`h-2 rounded-full bg-${color}-500`} style={{ width: `${progress}%` }}></div>
-    </div>
-);
-
-const useTranslation = () => (key) => ({
-  welcome: 'Bem-vindo',
-  workoutProgress: 'Progresso do Treino',
-  dietProgress: 'Progresso da Dieta',
-  waterIntake: 'Consumo de Água',
-  consecutiveDays: 'Dias Consecutivos',
-}[key] || key);
-
-// --- Fim dos Mocks ---
-
-export const DashboardTab = ({ onNavigate }) => {
+export const DashboardTab: React.FC<DashboardTabProps> = ({ onNavigate }) => {
+  // Conecta ao contexto REAL
   const { state } = useApp();
-  const t = useTranslation(state.user?.preferences.language);
+  
+  // Função de tradução simples (pode ser substituída por uma biblioteca como i18next)
+  const t = (key: string): string => ({
+    welcome: 'Bem-vindo',
+    workoutProgress: 'Progresso do Treino',
+    dietProgress: 'Progresso da Dieta',
+    waterIntake: 'Consumo de Água',
+    consecutiveDays: 'Dias Consecutivos',
+  }[key] || key);
 
-  const stats = [
-    { icon: Target, title: t('workoutProgress'), value: `${state.dailyGoals.workout}%`, progress: state.dailyGoals.workout, color: 'blue' },
-    { icon: TrendingUp, title: t('dietProgress'), value: `${state.dailyGoals.diet}%`, progress: state.dailyGoals.diet, color: 'green' },
-    { icon: Droplets, title: t('waterIntake'), value: `${state.waterIntake.consumed}ml`, progress: (state.waterIntake.consumed / state.waterIntake.goal) * 100, color: 'blue' },
-    { icon: Zap, title: t('consecutiveDays'), value: `${state.intensiveMode.consecutiveDays}`, progress: state.intensiveMode.intensity, color: 'orange' },
-  ];
+  // Usamos useMemo para evitar recalcular os arrays em cada renderização
+  const stats = useMemo(() => [
+    { 
+      icon: Target, 
+      title: t('workoutProgress'), 
+      value: `${state.dailyProgress.workout}%`, 
+      progress: state.dailyProgress.workout, 
+      color: 'blue' 
+    },
+    { 
+      icon: TrendingUp, 
+      title: t('dietProgress'), 
+      value: `${state.dailyProgress.diet}%`, 
+      progress: state.dailyProgress.diet, 
+      color: 'green' 
+    },
+    { 
+      icon: Droplets, 
+      title: t('waterIntake'), 
+      value: `${state.waterIntake.consumed}ml`, 
+      progress: state.waterIntake.goal > 0 ? (state.waterIntake.consumed / state.waterIntake.goal) * 100 : 0, 
+      color: 'blue' 
+    },
+    { 
+      icon: Zap, 
+      title: t('consecutiveDays'), 
+      value: `${state.intensiveMode.consecutiveDays}`, 
+      progress: (state.intensiveMode.consecutiveDays / 30) * 100, // Ex: Progresso para uma meta de 30 dias
+      color: 'orange' 
+    },
+  ], [state.dailyProgress, state.waterIntake, state.intensiveMode]);
 
-  const quickActions = [
+  const quickActions = useMemo(() => [
     {
       icon: Dumbbell,
       title: "Próximo Treino",
-      description: "Treino A - Peito e Tríceps",
+      description: "Treino A - Peito e Tríceps", // Este dado pode vir do state.workoutPlan no futuro
       color: "blue",
-      tabKey: "workout", // Chave para navegação
+      tabKey: "workout",
     },
     {
       icon: Droplets,
       title: "Meta de Água",
-      description: `Restam ${state.waterIntake.goal - state.waterIntake.consumed}ml`,
+      description: `Restam ${Math.max(0, state.waterIntake.goal - state.waterIntake.consumed)}ml`,
       color: "cyan",
-      tabKey: "water", // Chave para navegação
+      tabKey: "water",
     },
     {
       icon: Zap,
       title: "Modo Intensivo",
       description: `${state.intensiveMode.consecutiveDays} dias de streak`,
       color: "orange",
-      tabKey: "intensive", // Chave para navegação
+      tabKey: "intensive",
     },
-  ];
+  ], [state.waterIntake, state.intensiveMode]);
 
-  const handleActionClick = (tabKey) => {
+  const handleActionClick = (tabKey: string) => {
     if (onNavigate && typeof onNavigate === 'function') {
       onNavigate(tabKey);
     }
   };
+
+  // Enquanto os dados do usuário e do dashboard carregam, mostramos um feedback
+  if (state.loading) {
+    return <div className="text-white text-center p-8">Carregando seus dados...</div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -87,7 +99,7 @@ export const DashboardTab = ({ onNavigate }) => {
         className="text-center"
       >
         <h1 className="text-3xl font-bold text-white mb-2">
-          {t('welcome')}, {state.user?.name}! 👋
+          {t('welcome')}, {state.user?.nome || 'Usuário'}! 👋
         </h1>
         <p className="text-gray-400">
           Continue sua jornada fitness com determinação!
@@ -148,11 +160,7 @@ export const DashboardTab = ({ onNavigate }) => {
                       <h3 className="font-bold text-white mb-1 group-hover:text-white transition-colors">
                         {action.title}
                       </h3>
-                      <p className={`text-sm mb-3 ${
-                        action.tabKey === 'workout' ? 'text-white' : 
-                        action.tabKey === 'water' ? 'text-blue-400' :
-                        `text-${action.color}-400`
-                      }`}>
+                      <p className={`text-sm mb-3 text-${action.color}-400`}>
                         {action.description}
                       </p>
                       <div className="flex items-center text-xs text-gray-400 group-hover:text-gray-300 transition-colors">

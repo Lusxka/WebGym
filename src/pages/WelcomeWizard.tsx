@@ -141,98 +141,124 @@ const WelcomeWizard = () => {
   };
 
   const handleFinish = async () => {
-    if (validateStep(step) && user) {
-      setIsGenerating(true);
-      setErrorGenerating(null);
-      dispatch({ type: 'SET_GENERATING_PLAN', payload: true });
+  if (validateStep(step) && user) {
+    setIsGenerating(true);
+    setErrorGenerating(null);
+    dispatch({ type: 'SET_GENERATING_PLAN', payload: true });
 
-      const userProfileObject = JSON.parse(generateUserProfile());
-      const functionUrl = import.meta.env.VITE_GEMINI_FUNCTION_URL;
+    const userProfileObject = JSON.parse(generateUserProfile());
+    const functionUrl = import.meta.env.VITE_GEMINI_FUNCTION_URL;
 
-      if (!functionUrl) {
-        console.error("VITE_GEMINI_FUNCTION_URL não está definida no .env");
-        alert("Erro de configuração. A URL da função não foi encontrada.");
-        setIsGenerating(false);
-        dispatch({ type: 'SET_GENERATING_PLAN', payload: false });
-        return;
-      }
-
-      try {
-        const response = await fetch(functionUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ userProfile: userProfileObject }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Falha ao conectar com a IA.');
-        }
-
-        const result = await response.json();
-
-        if (result.workoutPlan) {
-          const levelMapping: { [key: string]: string } = {
-            beginner: 'iniciante',
-            intermediate: 'intermediario',
-            advanced: 'avancado'
-          };
-          
-          const genderMapping: { [key: string]: string } = {
-            male: 'masculino',
-            female: 'feminino'
-          };
-
-          const userProfileForDb = {
-            id: user.id,
-            email: user.email,
-            senha_hash: user.id,
-            nome: formData.name,
-            idade: parseInt(formData.age),
-            peso: parseFloat(formData.weight.replace(',', '.')),
-            altura: parseFloat(formData.height.replace(',', '.')),
-            sexo: genderMapping[formData.gender] || formData.gender,
-            objetivo: formData.goal,
-            nivel: levelMapping[formData.level] || formData.level,
-          };
-
-          const { error: upsertError } = await supabase
-            .from('usuarios')
-            .upsert(userProfileForDb);
-
-          if (upsertError) {
-            console.error("Erro ao guardar o perfil do utilizador:", upsertError);
-            throw upsertError;
-          } else {
-            dispatch({ type: 'UPDATE_USER_PROFILE', payload: userProfileForDb });
-            // Marca o perfil como completo
-            dispatch({ type: 'SET_PROFILE_COMPLETED', payload: true });
-          }
-
-          dispatch({ type: 'SET_WORKOUT_PLAN', payload: result.workoutPlan });
-          
-          // Fecha o wizard
-          dispatch({ type: 'SHOW_WIZARD', payload: false });
-          
-          // Mostra mensagem de sucesso
-          alert('🎉 Seu plano personalizado foi gerado com sucesso!');
-        } else {
-          throw new Error("A resposta da IA não continha um plano de treino válido.");
-        }
-        
-      } catch (error: any) {
-        console.error("Falha ao gerar plano:", error);
-        setErrorGenerating(`Desculpe, não foi possível gerar seu plano: ${error.message}`);
-        alert(`Ocorreu um erro ao gerar seu plano. Por favor, tente novamente.\nDetalhes: ${error.message}`);
-      } finally {
-        setIsGenerating(false);
-        dispatch({ type: 'SET_GENERATING_PLAN', payload: false });
-      }
+    if (!functionUrl) {
+      console.error("VITE_GEMINI_FUNCTION_URL não está definida no .env");
+      alert("Erro de configuração. A URL da função não foi encontrada.");
+      setIsGenerating(false);
+      dispatch({ type: 'SET_GENERATING_PLAN', payload: false });
+      return;
     }
-  };
+
+    try {
+      console.log('🚀 Enviando dados para gerar plano personalizado...');
+      
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ userProfile: userProfileObject }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || `Erro HTTP: ${response.status}`);
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || 'Falha na geração do plano');
+      }
+
+      console.log('✅ Plano gerado com sucesso!');
+
+      // Salvar perfil do usuário na tabela usuarios
+      const levelMapping: { [key: string]: string } = {
+        beginner: 'iniciante',
+        intermediate: 'intermediario',
+        advanced: 'avancado'
+      };
+      
+      const genderMapping: { [key: string]: string } = {
+        male: 'masculino',
+        female: 'feminino'
+      };
+
+      const userProfileForDb = {
+        id: user.id,
+        email: user.email,
+        senha_hash: user.id,
+        nome: formData.name,
+        idade: parseInt(formData.age),
+        peso: parseFloat(formData.weight.replace(',', '.')),
+        altura: parseFloat(formData.height.replace(',', '.')),
+        sexo: genderMapping[formData.gender] || formData.gender,
+        objetivo: formData.goal,
+        nivel: levelMapping[formData.level] || formData.level,
+      };
+
+      const { error: upsertError } = await supabase
+        .from('usuarios')
+        .upsert(userProfileForDb);
+
+      if (upsertError) {
+        console.error("Erro ao salvar perfil do usuário:", upsertError);
+        throw upsertError;
+      }
+
+      // Atualizar contexto da aplicação
+      dispatch({ type: 'UPDATE_USER_PROFILE', payload: userProfileForDb });
+      dispatch({ type: 'SET_PROFILE_COMPLETED', payload: true });
+
+      // Se a resposta contém workoutPlan (para compatibilidade com frontend)
+      if (result.workoutPlan) {
+        dispatch({ type: 'SET_WORKOUT_PLAN', payload: result.workoutPlan });
+      }
+
+      // Fechar wizard
+      dispatch({ type: 'SHOW_WIZARD', payload: false });
+      
+      // Mostrar mensagem de sucesso
+      const successMessage = result.initialMessage || '🎉 Seu plano personalizado foi gerado com sucesso!';
+      alert(successMessage);
+      
+      console.log('🎯 Processo concluído! Dados salvos no banco de dados.');
+      
+    } catch (error: any) {
+      console.error("❌ Falha ao gerar plano:", error);
+      
+      let errorMessage = 'Ocorreu um erro inesperado ao gerar seu plano.';
+      
+      if (error.message.includes('Token de autenticação')) {
+        errorMessage = 'Sessão expirou. Por favor, faça login novamente.';
+      } else if (error.message.includes('não autenticado')) {
+        errorMessage = 'Erro de autenticação. Tente fazer login novamente.';
+      } else if (error.message.includes('formato inválido')) {
+        errorMessage = 'A IA gerou uma resposta inválida. Tente novamente em alguns instantes.';
+      } else if (error.message.includes('HTTP')) {
+        errorMessage = 'Erro de conexão com o servidor. Verifique sua internet.';
+      } else {
+        errorMessage = `Erro: ${error.message}`;
+      }
+      
+      setErrorGenerating(errorMessage);
+      alert(`${errorMessage}\n\nSe o problema persistir, entre em contato com o suporte.`);
+      
+    } finally {
+      setIsGenerating(false);
+      dispatch({ type: 'SET_GENERATING_PLAN', payload: false });
+    }
+  }
+};
 
   const handleClose = () => {
     dispatch({ type: 'SHOW_WIZARD', payload: false });

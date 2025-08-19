@@ -247,8 +247,13 @@ type AppContextType = {
     dispatch: React.Dispatch<Action>;
     addWater: (amount: number) => Promise<void>;
     handleWorkoutCompletion: () => Promise<void>;
-    confirmMeal: (day: string, mealId: string) => Promise<void>;
+    confirmMeal: (mealId: string, dayName: string) => Promise<void>;
     updateUserProfile: (profileData: Partial<UserProfile>) => Promise<void>;
+    // Novas funções para gerenciar dados do BD
+    loadWorkoutPlansFromDB: () => Promise<void>;
+    loadDietPlansFromDB: () => Promise<void>;
+    markExerciseAsCompleted: (exerciseId: string) => Promise<void>;
+    checkIfUserHasPlans: () => Promise<boolean>;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -256,6 +261,299 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [state, dispatch] = useReducer(appReducer, initialState);
     const { user: authUser } = useAuth();
+
+    // ====================================================
+    // FUNÇÕES CORRIGIDAS PARA GERENCIAR DADOS DO BANCO
+    // ====================================================
+
+    const loadWorkoutPlansFromDB = async (userId: string) => {
+        try {
+            console.log('📋 Carregando planos de treino do banco...');
+            
+            // Query simples para evitar erro 400
+            const { data: workoutPlans, error } = await supabase
+                .from('planos_treino')
+                .select(`
+                    id,
+                    usuario_id,
+                    nome,
+                    dia_semana,
+                    objetivo,
+                    criado_em
+                `)
+                .eq('usuario_id', userId)
+                .order('dia_semana');
+
+            if (error) {
+                console.error('Erro ao carregar planos de treino:', error);
+                return;
+            }
+
+            if (!workoutPlans || workoutPlans.length === 0) {
+                console.log('Nenhum plano de treino encontrado');
+                return;
+            }
+
+            // Buscar exercícios separadamente para cada plano
+            const formattedWorkoutPlan: WorkoutPlan[] = [];
+            
+            for (const plan of workoutPlans) {
+                const { data: exercises, error: exercisesError } = await supabase
+                    .from('exercicios_treino')
+                    .select(`
+                        id,
+                        plano_id,
+                        nome,
+                        series,
+                        repeticoes,
+                        descanso,
+                        observacao,
+                        video_url,
+                        ordem,
+                        concluido
+                    `)
+                    .eq('plano_id', plan.id)
+                    .order('ordem');
+
+                if (exercisesError) {
+                    console.error(`Erro ao carregar exercícios do plano ${plan.id}:`, exercisesError);
+                    continue;
+                }
+
+                // Mapear dia da semana
+                const dayMappingReverse: { [key: string]: string } = {
+                    'segunda': 'monday',
+                    'terca': 'tuesday',
+                    'quarta': 'wednesday',
+                    'quinta': 'thursday',
+                    'sexta': 'friday',
+                    'sabado': 'saturday',
+                    'domingo': 'sunday'
+                };
+
+                const iconMapping: { [key: string]: string } = {
+                    'treino': 'Dumbbell',
+                    'descanso': 'Target',
+                    'cardio': 'Zap',
+                    'forca': 'Award',
+                    'hipertrofia': 'Dumbbell',
+                    'emagrecimento': 'Zap'
+                };
+
+                formattedWorkoutPlan.push({
+                    day: dayMappingReverse[plan.dia_semana] || plan.dia_semana,
+                    name: plan.nome || 'Treino do Dia',
+                    icon: iconMapping[plan.objetivo] || 'Dumbbell',
+                    completed: false,
+                    exercises: exercises?.map(exercise => ({
+                        id: exercise.id,
+                        name: exercise.nome,
+                        sets: exercise.series?.toString() || '3',
+                        reps: exercise.repeticoes?.toString() || '10',
+                        rest: exercise.descanso || '60s',
+                        completed: exercise.concluido || false,
+                        videoUrl: exercise.video_url,
+                        observation: exercise.observacao || ''
+                    })) || []
+                });
+            }
+
+            dispatch({ type: 'SET_WORKOUT_PLAN', payload: formattedWorkoutPlan });
+            console.log('✅ Planos de treino carregados:', formattedWorkoutPlan.length, 'planos');
+            
+        } catch (error) {
+            console.error('❌ Erro ao carregar planos de treino:', error);
+        }
+    };
+
+    const loadDietPlansFromDB = async (userId: string) => {
+        try {
+            console.log('🥗 Carregando planos de dieta do banco...');
+            
+            // Query simples para evitar erro 400  
+            const { data: dietPlans, error } = await supabase
+                .from('planos_dieta')
+                .select(`
+                    id,
+                    usuario_id,
+                    dia_semana,
+                    objetivo,
+                    descricao,
+                    criado_em
+                `)
+                .eq('usuario_id', userId)
+                .order('dia_semana');
+
+            if (error) {
+                console.error('Erro ao carregar planos de dieta:', error);
+                return;
+            }
+
+            if (!dietPlans || dietPlans.length === 0) {
+                console.log('Nenhum plano de dieta encontrado');
+                return;
+            }
+
+            // Buscar refeições separadamente - CORREÇÃO: usar plano_dieta_id
+            const formattedDietPlan: DietPlan[] = [];
+
+            for (const plan of dietPlans) {
+                const { data: meals, error: mealsError } = await supabase
+                    .from('refeicoes_dieta')
+                    .select(`
+                        id,
+                        plano_dieta_id,
+                        nome,
+                        horario,
+                        descricao,
+                        calorias,
+                        confirmada,
+                        ordem
+                    `)
+                    .eq('plano_dieta_id', plan.id) // CORREÇÃO: campo correto
+                    .order('ordem');
+
+                if (mealsError) {
+                    console.error(`Erro ao carregar refeições do plano ${plan.id}:`, mealsError);
+                    continue;
+                }
+
+                formattedDietPlan.push({
+                    day: plan.dia_semana,
+                    meals: meals?.map(meal => ({
+                        id: meal.id,
+                        name: meal.nome,
+                        time: meal.horario,
+                        description: meal.descricao,
+                        calories: meal.calorias || 0,
+                        confirmed: meal.confirmada || false
+                    })) || []
+                });
+            }
+
+            dispatch({ type: 'SET_DIET_PLAN', payload: formattedDietPlan });
+            console.log('✅ Planos de dieta carregados:', formattedDietPlan.length, 'planos');
+            
+        } catch (error) {
+            console.error('❌ Erro ao carregar planos de dieta:', error);
+        }
+    };
+
+    const markExerciseAsCompleted = async (exerciseId: string) => {
+        try {
+            console.log('✅ Marcando exercício como concluído:', exerciseId);
+            
+            const { error } = await supabase
+                .from('exercicios_treino')
+                .update({ 
+                    concluido: true,
+                    data_conclusao: getSaoPauloISOString()
+                })
+                .eq('id', exerciseId);
+
+            if (error) {
+                console.error('Erro ao marcar exercício como concluído:', error);
+                throw error;
+            }
+
+            // Atualizar estado local
+            if (state.workoutPlan) {
+                const updatedWorkoutPlan = state.workoutPlan.map(dayPlan => ({
+                    ...dayPlan,
+                    exercises: dayPlan.exercises.map(exercise => 
+                        exercise.id === exerciseId 
+                            ? { ...exercise, completed: true }
+                            : exercise
+                    )
+                }));
+                
+                dispatch({ type: 'SET_WORKOUT_PLAN', payload: updatedWorkoutPlan });
+            }
+
+            console.log('✅ Exercício marcado como concluído com sucesso');
+            
+        } catch (error) {
+            console.error('❌ Erro ao marcar exercício como concluído:', error);
+            throw error;
+        }
+    };
+
+    const confirmMealFromDB = async (mealId: string, dayName: string) => {
+        try {
+            console.log('🍽️ Confirmando refeição:', mealId);
+            
+            const { error } = await supabase
+                .from('refeicoes_dieta')
+                .update({ 
+                    confirmada: true,
+                    data_confirmacao: getSaoPauloISOString()
+                })
+                .eq('id', mealId);
+
+            if (error) {
+                console.error('Erro ao confirmar refeição:', error);
+                throw error;
+            }
+
+            // Atualizar estado local
+            const updatedDietPlan = state.dietPlan.map(dayPlan =>
+                dayPlan.day.toLowerCase() === dayName.toLowerCase()
+                    ? {
+                        ...dayPlan,
+                        meals: dayPlan.meals.map(meal =>
+                            meal.id === mealId
+                                ? { ...meal, confirmed: true }
+                                : meal
+                        ),
+                    }
+                    : dayPlan
+            );
+
+            dispatch({ type: 'SET_DIET_PLAN', payload: updatedDietPlan });
+            console.log('✅ Refeição confirmada com sucesso');
+            
+        } catch (error) {
+            console.error('❌ Erro ao confirmar refeição:', error);
+            throw error;
+        }
+    };
+
+    const checkIfUserHasPlans = async (userId: string): Promise<boolean> => {
+        try {
+            console.log('🔍 Verificando se usuário tem planos...');
+            
+            const [workoutCheck, dietCheck] = await Promise.all([
+                supabase
+                    .from('planos_treino')
+                    .select('id')
+                    .eq('usuario_id', userId)
+                    .limit(1),
+                supabase
+                    .from('planos_dieta')
+                    .select('id')
+                    .eq('usuario_id', userId)
+                    .limit(1)
+            ]);
+
+            const hasWorkoutPlans = workoutCheck.data && workoutCheck.data.length > 0;
+            const hasDietPlans = dietCheck.data && dietCheck.data.length > 0;
+            
+            console.log('📊 Planos existentes:', { 
+                treino: hasWorkoutPlans, 
+                dieta: hasDietPlans 
+            });
+            
+            return hasWorkoutPlans || hasDietPlans;
+            
+        } catch (error) {
+            console.error('❌ Erro ao verificar planos existentes:', error);
+            return false;
+        }
+    };
+
+    // ====================================================
+    // FUNÇÕES ORIGINAIS (MANTIDAS)
+    // ====================================================
 
     const addWater = async (amount: number) => {
         if (!state.user) throw new Error("Usuário não autenticado.");
@@ -344,16 +642,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    const confirmMeal = async (day: string, mealId: string) => {
-        const { error } = await supabase
-            .from('refeicoes_dieta')
-            .update({ confirmada: true })
-            .eq('id', mealId);
-        if (error) {
-            console.error("Erro ao confirmar refeição:", error);
-            throw error;
-        }
-        dispatch({ type: 'CONFIRM_MEAL', payload: { day, mealId } });
+    const confirmMeal = async (mealId: string, dayName: string) => {
+        await confirmMealFromDB(mealId, dayName);
     };
 
     const updateUserProfile = async (profileData: Partial<UserProfile>) => {
@@ -401,7 +691,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 if (userProfile.preferencias) {
                     const prefs = JSON.parse(userProfile.preferencias);
                     if (prefs && typeof prefs.darkMode === 'boolean') {
-                        isDarkMode = prefs.darkMode; // Sobrescreve com a preferência salva
+                        isDarkMode = prefs.darkMode;
                     }
                 }
             } catch (e) {
@@ -409,22 +699,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
             dispatch({ type: 'SET_DARK_MODE', payload: isDarkMode });
 
-            // ... (restante da lógica de fetch de dados) ...
             const todayISO = getSaoPauloDateString();
             const todayDayName = getNormalizedDayName();
             const weekDays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
+            
             const { data: allWorkoutPlans } = await supabase
                 .from('planos_treino')
                 .select('id, dia_semana')
                 .eq('usuario_id', authUser.id);
+            
             let workoutProgress = 0;
             let weeklyProgress: WeeklyProgress[] = [];
+            
             if (allWorkoutPlans && allWorkoutPlans.length > 0) {
                 const planIds = allWorkoutPlans.map(p => p.id);
                 const { data: allExercises } = await supabase
                     .from('exercicios_treino')
                     .select('plano_id, concluido')
                     .in('plano_id', planIds);
+                
                 const progressByPlanId = allWorkoutPlans.reduce((acc, plan) => {
                     const exercisesForPlan = allExercises?.filter(e => e.plano_id === plan.id) ?? [];
                     const completed = exercisesForPlan.filter(e => e.concluido).length;
@@ -432,6 +725,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     acc[plan.id] = total > 0 ? Math.round((completed / total) * 100) : 0;
                     return acc;
                 }, {} as Record<string, number>);
+                
                 weeklyProgress = weekDays.map(day => {
                     const planForDay = allWorkoutPlans.find(p => p.dia_semana.toLowerCase() === day);
                     return {
@@ -439,6 +733,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         progress: planForDay ? progressByPlanId[planForDay.id] : 0
                     };
                 });
+                
                 const todayPlan = allWorkoutPlans.find(p => p.dia_semana.toLowerCase() === todayDayName);
                 if (todayPlan) {
                     workoutProgress = progressByPlanId[todayPlan.id];
@@ -449,6 +744,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     progress: 0
                 }));
             }
+            
             let dietProgress = 0;
             const { data: dietPlanToday } = await supabase
                 .from('planos_dieta')
@@ -456,6 +752,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 .eq('usuario_id', authUser.id)
                 .eq('dia_semana', todayDayName)
                 .maybeSingle();
+            
             if (dietPlanToday && dietPlanToday.refeicoes_dieta) {
                 const meals = dietPlanToday.refeicoes_dieta as any[];
                 const totalMeals = meals.length;
@@ -467,16 +764,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     type: 'SET_DIET_PLAN',
                     payload: [{
                         day: todayDayName,
-                        meals: meals.map(m => ({ ...m, name: m.nome, time: m.horario, description: m.descricao }))
+                        meals: meals.map(m => ({ 
+                            id: m.id,
+                            name: m.nome, 
+                            time: m.horario, 
+                            description: m.descricao,
+                            calories: m.calorias,
+                            confirmed: m.confirmada
+                        }))
                     }]
                 });
             }
+            
             const { data: waterRecords } = await supabase
                 .from('registro_agua')
                 .select('consumido_ml')
                 .eq('usuario_id', authUser.id)
                 .eq('data', todayISO);
+            
             const totalWaterConsumedToday = waterRecords?.reduce((sum, record) => sum + record.consumido_ml, 0) ?? 0;
+            
             const { data: intensiveModeData } = await supabase
                 .from('modo_intensivo')
                 .select('dias_consecutivos, intensidade, melhor_sequencia')
@@ -484,6 +791,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 .order('criado_em', { ascending: false })
                 .limit(1)
                 .maybeSingle();
+            
             dispatch({
                 type: 'SET_DASHBOARD_DATA',
                 payload: {
@@ -498,7 +806,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             });
             dispatch({ type: 'SET_LOADING', payload: false });
         };
+        
         fetchInitialData();
+        
+        // Carregar planos após carregar dados do usuário
+        if (authUser) {
+            loadWorkoutPlansFromDB(authUser.id);
+            loadDietPlansFromDB(authUser.id);
+        }
     }, [authUser]);
 
     return (
@@ -509,7 +824,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 addWater,
                 handleWorkoutCompletion,
                 confirmMeal,
-                updateUserProfile
+                updateUserProfile,
+                // Novas funções
+                loadWorkoutPlansFromDB: () => authUser ? loadWorkoutPlansFromDB(authUser.id) : Promise.resolve(),
+                loadDietPlansFromDB: () => authUser ? loadDietPlansFromDB(authUser.id) : Promise.resolve(),
+                markExerciseAsCompleted,
+                checkIfUserHasPlans: () => authUser ? checkIfUserHasPlans(authUser.id) : Promise.resolve(false)
             }}
         >
             {children}
@@ -524,3 +844,4 @@ export const useApp = () => {
     }
     return context;
 };
+                    

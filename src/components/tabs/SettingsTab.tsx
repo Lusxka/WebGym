@@ -13,8 +13,8 @@ interface UserPreferences {
 }
 
 export const SettingsTab: React.FC = () => {
-    // Pega a nova função 'updateUserProfile' do contexto
-    const { state, updateUserProfile } = useApp();
+    // Pega o estado, o dispatch e a função de atualização do perfil do contexto
+    const { state, updateUserProfile, dispatch } = useApp();
     const [isLoading, setIsLoading] = useState(false);
 
     const parsedPreferences = useMemo((): UserPreferences => {
@@ -23,8 +23,8 @@ export const SettingsTab: React.FC = () => {
                 return JSON.parse(state.user.preferencias);
             }
         } catch (error) { console.error("Falha ao fazer parse das preferências:", error); }
-        return { darkMode: true, language: 'pt_BR' };
-    }, [state.user?.preferencias]);
+        return { darkMode: state.darkMode, language: 'pt_BR' };
+    }, [state.user?.preferencias, state.darkMode]);
 
     const t = useTranslation(parsedPreferences.language);
 
@@ -35,22 +35,17 @@ export const SettingsTab: React.FC = () => {
         altura: state.user?.altura?.toString() || '',
         sexo: state.user?.sexo || 'masculino',
         nivel: state.user?.nivel || 'iniciante',
-        // CORREÇÃO: Altera 'objetivos' para 'objetivo'
         objetivo: (state.user as UserProfile)?.objetivo || '',
     });
 
-    // CORREÇÃO: Inicializa o estado com os novos campos diretamente do perfil do usuário
     const [preferences, setPreferences] = useState({
         shareWorkouts: state.user?.compartilhar_treinos ?? false,
         shareDiets: state.user?.compartilhar_dietas ?? false,
-        darkMode: parsedPreferences.darkMode,
         language: parsedPreferences.language,
     });
 
-    // Efeito para sincronizar o formulário se o estado global mudar (ex: após salvar)
     useEffect(() => {
         if (state.user) {
-            const currentParsedPreferences = state.user.preferencias ? JSON.parse(state.user.preferencias) : {};
             setFormData({
                 nome: state.user.nome || '',
                 idade: state.user.idade?.toString() || '',
@@ -58,24 +53,20 @@ export const SettingsTab: React.FC = () => {
                 altura: state.user.altura?.toString() || '',
                 sexo: state.user.sexo || 'masculino',
                 nivel: state.user.nivel || 'iniciante',
-                // CORREÇÃO: Altera 'objetivos' para 'objetivo'
                 objetivo: state.user.objetivo || '',
             });
-            // CORREÇÃO: Sincroniza o estado das preferências com os novos campos do usuário
+            const currentParsedPreferences = state.user.preferencias ? JSON.parse(state.user.preferencias) : {};
             setPreferences({
                 shareWorkouts: state.user.compartilhar_treinos ?? false,
                 shareDiets: state.user.compartilhar_dietas ?? false,
-                darkMode: currentParsedPreferences.darkMode ?? false,
                 language: currentParsedPreferences.language ?? 'pt_BR',
             });
         }
     }, [state.user, parsedPreferences]);
 
-    // Função para salvar os dados no banco de dados
     const handleSave = async () => {
         setIsLoading(true);
         try {
-            // CORREÇÃO: Envia os novos campos de compartilhamento separadamente
             await updateUserProfile({
                 nome: formData.nome,
                 idade: formData.idade ? parseInt(formData.idade) : null,
@@ -86,9 +77,8 @@ export const SettingsTab: React.FC = () => {
                 objetivo: formData.objetivo,
                 compartilhar_treinos: preferences.shareWorkouts,
                 compartilhar_dietas: preferences.shareDiets,
-                // A coluna 'preferencias' agora salva apenas as preferências restantes
                 preferencias: JSON.stringify({
-                    darkMode: preferences.darkMode,
+                    darkMode: state.darkMode,
                     language: preferences.language
                 }),
             });
@@ -104,8 +94,9 @@ export const SettingsTab: React.FC = () => {
         <button
             type="button"
             onClick={onClick}
+            // CORREÇÃO: Fundo do switch com cores para os dois modos
             className={`relative flex items-center w-14 h-8 rounded-full transition-colors ${
-                enabled ? 'bg-blue-600 justify-end' : 'bg-gray-600 justify-start'
+                enabled ? 'bg-blue-600 justify-end' : 'bg-gray-400 dark:bg-gray-600 justify-start'
             }`}
         >
             <motion.div
@@ -116,53 +107,64 @@ export const SettingsTab: React.FC = () => {
         </button>
     );
 
+    const handleDarkModeToggle = () => {
+        dispatch({ type: 'SET_DARK_MODE', payload: !state.darkMode });
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-bold text-white mb-2">{t('settings')}</h1>
-                <p className="text-gray-400">Gerencie suas informações pessoais e preferências</p>
+                {/* CORREÇÃO: Título com cores para os dois modos */}
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t('settings')}</h1>
+                {/* CORREÇÃO: Parágrafo com cores para os dois modos */}
+                <p className="text-gray-600 dark:text-gray-400">Gerencie suas informações pessoais e preferências</p>
             </div>
 
             {/* Informações Pessoais */}
             <Card className="p-6">
                 <div className="flex items-center gap-3 mb-6">
-                    <User className="text-blue-400" size={24} />
-                    <h2 className="text-xl font-bold text-white">{t('personalData')}</h2>
+                    {/* CORREÇÃO: Ícone com cores para os dois modos */}
+                    <User className="text-blue-600 dark:text-blue-400" size={24} />
+                    {/* CORREÇÃO: Título com cores para os dois modos */}
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('personalData')}</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Nome */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">{t('name')}</label>
-                        <input type="text" value={formData.nome} onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))} className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                        {/* CORREÇÃO: Label com cores para os dois modos */}
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">{t('name')}</label>
+                        {/* CORREÇÃO: Input com cores para os dois modos */}
+                        <input type="text" value={formData.nome} onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))} className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                     </div>
                     {/* Idade */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">{t('age')}</label>
-                        <input type="number" value={formData.idade} onChange={(e) => setFormData(prev => ({ ...prev, idade: e.target.value }))} className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">{t('age')}</label>
+                        <input type="number" value={formData.idade} onChange={(e) => setFormData(prev => ({ ...prev, idade: e.target.value }))} className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                     </div>
                     {/* Peso */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">{t('weight')} (kg)</label>
-                        <input type="number" step="0.1" value={formData.peso} onChange={(e) => setFormData(prev => ({ ...prev, peso: e.target.value }))} className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">{t('weight')} (kg)</label>
+                        <input type="number" step="0.1" value={formData.peso} onChange={(e) => setFormData(prev => ({ ...prev, peso: e.target.value }))} className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                     </div>
                     {/* Altura */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">{t('height')} (cm)</label>
-                        <input type="number" value={formData.altura} onChange={(e) => setFormData(prev => ({ ...prev, altura: e.target.value }))} className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">{t('height')} (cm)</label>
+                        <input type="number" value={formData.altura} onChange={(e) => setFormData(prev => ({ ...prev, altura: e.target.value }))} className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                     </div>
                     {/* Gênero */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">{t('gender')}</label>
-                        <select value={formData.sexo} onChange={(e) => setFormData(prev => ({ ...prev, sexo: e.target.value as 'masculino' | 'feminino' }))} className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">{t('gender')}</label>
+                        {/* CORREÇÃO: Select com cores para os dois modos */}
+                        <select value={formData.sexo} onChange={(e) => setFormData(prev => ({ ...prev, sexo: e.target.value as 'masculino' | 'feminino' }))} className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                             <option value="masculino">Masculino</option>
                             <option value="feminino">Feminino</option>
                         </select>
                     </div>
                     {/* Nível */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">{t('level')}</label>
-                        <select value={formData.nivel} onChange={(e) => setFormData(prev => ({ ...prev, nivel: e.target.value as 'iniciante' | 'intermediario' | 'avancado' }))} className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">{t('level')}</label>
+                        <select value={formData.nivel} onChange={(e) => setFormData(prev => ({ ...prev, nivel: e.target.value as 'iniciante' | 'intermediario' | 'avancado' }))} className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                             <option value="iniciante">{t('beginner')}</option>
                             <option value="intermediario">{t('intermediate')}</option>
                             <option value="avancado">{t('advanced')}</option>
@@ -174,38 +176,41 @@ export const SettingsTab: React.FC = () => {
             {/* Preferências */}
             <Card className="p-6">
                 <div className="flex items-center gap-3 mb-6">
-                    <Palette className="text-purple-400" size={24} />
-                    <h2 className="text-xl font-bold text-white">{t('preferences')}</h2>
+                    {/* CORREÇÃO: Ícone com cores para os dois modos */}
+                    <Palette className="text-purple-600 dark:text-purple-400" size={24} />
+                    {/* CORREÇÃO: Título com cores para os dois modos */}
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('preferences')}</h2>
                 </div>
                 <div className="space-y-6">
                     {/* Idioma */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2"><Globe className="inline w-4 h-4 mr-2" />{t('language')}</label>
-                        <select value={preferences.language} onChange={(e) => setPreferences(prev => ({ ...prev, language: e.target.value as any }))} className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                        {/* CORREÇÃO: Label com cores para os dois modos */}
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2"><Globe className="inline w-4 h-4 mr-2" />{t('language')}</label>
+                        <select value={preferences.language} onChange={(e) => setPreferences(prev => ({ ...prev, language: e.target.value as any }))} className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                             <option value="pt_BR">Português (Brasil)</option>
                             <option value="en_US">English (US)</option>
                         </select>
                     </div>
                     <div className="space-y-4">
                         {/* Toggles */}
-                        <div className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
+                        <div className="flex items-center justify-between p-4 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                             <div>
-                                <h3 className="text-white font-medium">{t('darkMode')}</h3>
-                                <p className="text-gray-400 text-sm">Usar tema escuro na interface</p>
+                                <h3 className="text-gray-900 dark:text-white font-medium">{t('darkMode')}</h3>
+                                <p className="text-gray-600 dark:text-gray-400 text-sm">Usar tema escuro na interface</p>
                             </div>
-                            <ToggleSwitch enabled={preferences.darkMode} onClick={() => setPreferences(prev => ({ ...prev, darkMode: !prev.darkMode }))} />
+                            <ToggleSwitch enabled={state.darkMode} onClick={handleDarkModeToggle} />
                         </div>
-                        <div className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
+                        <div className="flex items-center justify-between p-4 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                             <div>
-                                <h3 className="text-white font-medium">{t('shareWorkouts')}</h3>
-                                <p className="text-gray-400 text-sm">Permitir que amigos vejam seus treinos</p>
+                                <h3 className="text-gray-900 dark:text-white font-medium">{t('shareWorkouts')}</h3>
+                                <p className="text-gray-600 dark:text-gray-400 text-sm">Permitir que amigos vejam seus treinos</p>
                             </div>
                             <ToggleSwitch enabled={preferences.shareWorkouts} onClick={() => setPreferences(prev => ({ ...prev, shareWorkouts: !prev.shareWorkouts }))} />
                         </div>
-                        <div className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
+                        <div className="flex items-center justify-between p-4 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                             <div>
-                                <h3 className="text-white font-medium">{t('shareDiets')}</h3>
-                                <p className="text-gray-400 text-sm">Permitir que amigos vejam sua dieta</p>
+                                <h3 className="text-gray-900 dark:text-white font-medium">{t('shareDiets')}</h3>
+                                <p className="text-gray-600 dark:text-gray-400 text-sm">Permitir que amigos vejam sua dieta</p>
                             </div>
                             <ToggleSwitch enabled={preferences.shareDiets} onClick={() => setPreferences(prev => ({ ...prev, shareDiets: !prev.shareDiets }))} />
                         </div>

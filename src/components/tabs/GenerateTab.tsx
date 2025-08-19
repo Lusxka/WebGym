@@ -4,25 +4,30 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Wand2, User, Target, Calendar, CheckCircle, Sparkles } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { Card } from '../Card'; // Importe seus componentes reutilizáveis
 
 // Objeto para mapear as cores às classes completas do Tailwind.
 // Esta é a correção principal para evitar problemas com o Purge do Tailwind.
 const colorMap = {
   blue: {
+    // CORREÇÃO: Adicionando classes de modo claro
     bg: 'bg-blue-500/10',
-    text: 'text-blue-400',
+    text: 'text-blue-600 dark:text-blue-400',
   },
   purple: {
+    // CORREÇÃO: Adicionando classes de modo claro
     bg: 'bg-purple-500/10',
-    text: 'text-purple-400',
+    text: 'text-purple-600 dark:text-purple-400',
   },
   orange: {
+    // CORREÇÃO: Adicionando classes de modo claro
     bg: 'bg-orange-500/10',
-    text: 'text-orange-400',
+    text: 'text-orange-600 dark:text-orange-400',
   },
   green: {
+    // CORREÇÃO: Adicionando classes de modo claro
     bg: 'bg-green-500/10',
-    text: 'text-green-400',
+    text: 'text-green-600 dark:text-green-400',
   },
 };
 
@@ -61,6 +66,7 @@ export const GenerateTab = () => {
   ];
 
   return (
+    // CORREÇÃO: Fundo da página principal não é alterado aqui, pois já está no DashboardPage.
     <div className="min-h-full flex items-center justify-center p-4">
       <div className="max-w-4xl w-full">
         {/* Header Principal */}
@@ -72,10 +78,12 @@ export const GenerateTab = () => {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl mb-6">
             <Sparkles className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-4">
+          {/* CORREÇÃO: Título com cores para os dois modos */}
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
             Gere Seu Plano Personalizado
           </h1>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
+          {/* CORREÇÃO: Parágrafo com cores para os dois modos */}
+          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
             Crie um plano de treino e dieta completamente personalizado para seus objetivos únicos
           </p>
         </motion.div>
@@ -98,13 +106,17 @@ export const GenerateTab = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 + index * 0.1 }}
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-2xl p-6 hover:border-gray-600 transition-all duration-300"
+                // CORREÇÃO: Fundo do card e borda com cores para os dois modos
+                className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-2xl p-6 hover:border-gray-400 dark:hover:border-gray-600 transition-all duration-300"
               >
                 <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4 ${colors.bg}`}>
+                  {/* CORREÇÃO: Cor do ícone com base no colormap */}
                   <Icon className={`w-6 h-6 ${colors.text}`} />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">{feature.title}</h3>
-                <p className="text-gray-400 leading-relaxed">{feature.description}</p>
+                {/* CORREÇÃO: Título com cores para os dois modos */}
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{feature.title}</h3>
+                {/* CORREÇÃO: Descrição com cores para os dois modos */}
+                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{feature.description}</p>
               </motion.div>
             );
           })}
@@ -115,16 +127,19 @@ export const GenerateTab = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-2 border-blue-500/30 rounded-3xl p-8 text-center backdrop-blur-sm"
+          // CORREÇÃO: Adicionando classes de fundo para os dois modos. Mantive o gradiente no dark.
+          className="bg-gray-100 dark:bg-gradient-to-r dark:from-blue-600/20 dark:to-purple-600/20 border-2 border-gray-200 dark:border-blue-500/30 rounded-3xl p-8 text-center backdrop-blur-sm"
         >
           <div className="mb-6">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl mb-4">
               <Wand2 className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-3">
+            {/* CORREÇÃO: Título com cores para os dois modos */}
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
               Pronto para começar?
             </h2>
-            <p className="text-gray-300 max-w-lg mx-auto">
+            {/* CORREÇÃO: Parágrafo com cores para os dois modos */}
+            <p className="text-gray-600 dark:text-gray-300 max-w-lg mx-auto">
               O processo leva apenas alguns minutos e você terá um plano completo e personalizado
             </p>
           </div>
@@ -132,6 +147,7 @@ export const GenerateTab = () => {
           <button
             onClick={handleOpenWizard}
             disabled={state.isGeneratingPlan}
+            // CORREÇÃO: Classes de botão com cores para os dois modos
             className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-300 hover:scale-105 shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             {state.isGeneratingPlan ? (
@@ -147,7 +163,8 @@ export const GenerateTab = () => {
             )}
           </button>
 
-          <p className="text-sm text-gray-400 mt-4">
+          {/* CORREÇÃO: Texto do footer com cores para os dois modos */}
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-4">
             ✨ Powered by IA • 📱 100% Personalizado • 🎯 Resultados Comprovados
           </p>
         </motion.div>
@@ -160,16 +177,19 @@ export const GenerateTab = () => {
           className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 text-center"
         >
           <div className="p-4">
-            <div className="text-3xl font-bold text-blue-400 mb-2">5 min</div>
-            <div className="text-gray-400 text-sm">Tempo médio do questionário</div>
+            {/* CORREÇÃO: Título e texto com cores para os dois modos */}
+            <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">5 min</div>
+            <div className="text-gray-600 dark:text-gray-400 text-sm">Tempo médio do questionário</div>
           </div>
           <div className="p-4">
-            <div className="text-3xl font-bold text-purple-400 mb-2">100%</div>
-            <div className="text-gray-400 text-sm">Personalizado para você</div>
+            {/* CORREÇÃO: Título e texto com cores para os dois modos */}
+            <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">100%</div>
+            <div className="text-gray-600 dark:text-gray-400 text-sm">Personalizado para você</div>
           </div>
           <div className="p-4">
-            <div className="text-3xl font-bold text-green-400 mb-2">24/7</div>
-            <div className="text-gray-400 text-sm">Disponível a qualquer hora</div>
+            {/* CORREÇÃO: Título e texto com cores para os dois modos */}
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">24/7</div>
+            <div className="text-gray-600 dark:text-gray-400 text-sm">Disponível a qualquer hora</div>
           </div>
         </motion.div>
       </div>

@@ -11,7 +11,6 @@ export interface UserProfile {
     altura: number | null;
     sexo: 'masculino' | 'feminino' | null;
     objetivo: string | null;
-    // CORREÇÃO: Adicione as novas colunas para compartilhamento
     compartilhar_treinos: boolean;
     compartilhar_dietas: boolean;
     preferencias: string | null;
@@ -84,6 +83,7 @@ interface AppState {
         diet: number;
     };
     weeklyProgress: WeeklyProgress[];
+    darkMode: boolean;
 }
 
 type Action =
@@ -98,7 +98,15 @@ type Action =
     | { type: 'ADD_WATER'; payload: number }
     | { type: 'SET_GENERATING_PLAN'; payload: boolean }
     | { type: 'SET_PROFILE_COMPLETED'; payload: boolean }
-    | { type: 'SET_DASHBOARD_DATA'; payload: DashboardData };
+    | { type: 'SET_DASHBOARD_DATA'; payload: DashboardData }
+    | { type: 'SET_DARK_MODE'; payload: boolean };
+
+const getSystemTheme = (): boolean => {
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return true;
+    }
+    return false;
+};
 
 const initialState: AppState = {
     user: null,
@@ -120,14 +128,13 @@ const initialState: AppState = {
         diet: 0,
     },
     weeklyProgress: [],
+    darkMode: getSystemTheme(),
 };
 
-// CORREÇÃO: Funções mais robustas para fuso horário de São Paulo (UTC-3)
 const getSaoPauloDate = (): Date => {
-    // Pega a hora atual em UTC e subtrai 3 horas para SP (UTC-3)
     const now = new Date();
     const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const saoPauloTime = new Date(utcTime + (-3 * 3600000)); // UTC-3
+    const saoPauloTime = new Date(utcTime + (-3 * 3600000));
     return saoPauloTime;
 };
 
@@ -144,7 +151,6 @@ const getSaoPauloISOString = (): string => {
     return date.toISOString();
 };
 
-// Função para debug - remover depois
 const debugTime = () => {
     console.log('=== DEBUG HORÁRIO ===');
     console.log('Hora local sistema:', new Date().toLocaleString());
@@ -154,14 +160,9 @@ const debugTime = () => {
     console.log('ISO SP:', getSaoPauloISOString());
 };
 
-// CORREÇÃO: Função auxiliar para padronizar o nome do dia da semana
 const getNormalizedDayName = (date?: Date): string => {
     const targetDate = date || getSaoPauloDate();
-    // Use a data diretamente sem conversão adicional de timezone
-    const dayName = targetDate.toLocaleDateString('pt-BR', {
-        weekday: 'long'
-    }).replace('-feira', '');
-
+    const dayName = targetDate.toLocaleDateString('pt-BR', { weekday: 'long' }).replace('-feira', '');
     switch (dayName.toLowerCase()) {
         case 'terça': return 'terca';
         case 'sábado': return 'sabado';
@@ -169,7 +170,6 @@ const getNormalizedDayName = (date?: Date): string => {
     }
 };
 
-// Reducer (Seu código original completo)
 const appReducer = (state: AppState, action: Action): AppState => {
     switch (action.type) {
         case 'LOGIN_SUCCESS':
@@ -235,6 +235,8 @@ const appReducer = (state: AppState, action: Action): AppState => {
                 },
                 weeklyProgress: action.payload.weeklyProgress,
             };
+        case 'SET_DARK_MODE':
+            return { ...state, darkMode: action.payload };
         default:
             return state;
     }
@@ -257,33 +259,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const addWater = async (amount: number) => {
         if (!state.user) throw new Error("Usuário não autenticado.");
-
-        // CORREÇÃO: Usa as funções padronizadas para São Paulo
         const today = getSaoPauloDateString();
         const createdAt = getSaoPauloISOString();
-
-        // DEBUG - remover depois
         debugTime();
         console.log('Salvando água com data:', today, 'criado_em:', createdAt);
-
         const { error } = await supabase.from('registro_agua').insert({
             usuario_id: state.user.id,
             consumido_ml: amount,
             data: today,
             criado_em: createdAt
         });
-
         if (error) {
             console.error("Erro ao registrar consumo de água:", error);
             throw error;
         }
-
         dispatch({ type: 'ADD_WATER', payload: amount });
     };
 
     const handleWorkoutCompletion = async () => {
         if (!state.user) throw new Error("Usuário não autenticado.");
-
         const { data: lastRecord } = await supabase
             .from('modo_intensivo')
             .select('dias_consecutivos, melhor_sequencia, criado_em')
@@ -291,33 +285,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             .order('criado_em', { ascending: false })
             .limit(1)
             .single();
-
-        // CORREÇÃO: Usa a data de São Paulo para comparações
         const today = getSaoPauloDate();
         today.setHours(0, 0, 0, 0);
-
         let newConsecutiveDays = 1;
         let newBestStreak = lastRecord?.melhor_sequencia ?? 1;
-
         if (lastRecord) {
-            // CORREÇÃO: Converte o timestamp do banco para São Paulo usando método mais direto
             const lastRecordUTC = new Date(lastRecord.criado_em);
-            const lastRecordSP = new Date(lastRecordUTC.getTime() - (3 * 3600000)); // UTC-3
+            const lastRecordSP = new Date(lastRecordUTC.getTime() - (3 * 3600000));
             lastRecordSP.setHours(0, 0, 0, 0);
-
             const yesterday = new Date(today);
             yesterday.setDate(today.getDate() - 1);
-
             console.log('DEBUG - Comparação de datas:');
             console.log('Hoje SP:', today);
             console.log('Último registro SP:', lastRecordSP);
             console.log('Ontem SP:', yesterday);
-
             if (lastRecordSP.getTime() === today.getTime()) {
                 console.log('Já registrou hoje');
                 return;
             }
-
             if (lastRecordSP.getTime() === yesterday.getTime()) {
                 console.log('Registrou ontem, incrementando sequência');
                 newConsecutiveDays = lastRecord.dias_consecutivos + 1;
@@ -325,11 +310,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 console.log('Quebrou a sequência');
             }
         }
-
         if (newConsecutiveDays > newBestStreak) {
             newBestStreak = newConsecutiveDays;
         }
-
         const { data: newRecord, error } = await supabase
             .from('modo_intensivo')
             .insert({
@@ -337,16 +320,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 dias_consecutivos: newConsecutiveDays,
                 melhor_sequencia: newBestStreak,
                 intensidade: Math.min(100, newConsecutiveDays * 5),
-                criado_em: getSaoPauloISOString() // CORREÇÃO: Usa horário de São Paulo
+                criado_em: getSaoPauloISOString()
             })
             .select()
             .single();
-
         if (error) {
             console.error("Erro ao atualizar modo intensivo:", error);
             throw error;
         }
-
         if (newRecord) {
             dispatch({
                 type: 'SET_DASHBOARD_DATA',
@@ -368,12 +349,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             .from('refeicoes_dieta')
             .update({ confirmada: true })
             .eq('id', mealId);
-
         if (error) {
             console.error("Erro ao confirmar refeição:", error);
             throw error;
         }
-
         dispatch({ type: 'CONFIRM_MEAL', payload: { day, mealId } });
     };
 
@@ -381,19 +360,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!state.user) {
             throw new Error("Usuário não autenticado.");
         }
-
         const { data, error } = await supabase
             .from('usuarios')
             .update(profileData)
             .eq('id', state.user.id)
             .select()
             .single();
-
         if (error) {
             console.log("Erro ao atualizar perfil:", error);
             throw error;
         }
-
         if (data) {
             dispatch({ type: 'UPDATE_USER_PROFILE', payload: data });
         }
@@ -407,13 +383,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         const fetchInitialData = async () => {
             dispatch({ type: 'SET_LOADING', payload: true });
-
             const { data: userProfile } = await supabase
                 .from('usuarios')
                 .select('*')
                 .eq('id', authUser.id)
                 .single();
-
             if (!userProfile) {
                 dispatch({ type: 'LOGOUT' });
                 return;
@@ -421,27 +395,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
             dispatch({ type: 'LOGIN_SUCCESS', payload: userProfile });
 
-            // CORREÇÃO: Usa as funções padronizadas para São Paulo
+            // CORREÇÃO: Pega a preferência do sistema como fallback
+            let isDarkMode = getSystemTheme();
+            try {
+                if (userProfile.preferencias) {
+                    const prefs = JSON.parse(userProfile.preferencias);
+                    if (prefs && typeof prefs.darkMode === 'boolean') {
+                        isDarkMode = prefs.darkMode; // Sobrescreve com a preferência salva
+                    }
+                }
+            } catch (e) {
+                console.error("Falha ao parsear preferências do usuário", e);
+            }
+            dispatch({ type: 'SET_DARK_MODE', payload: isDarkMode });
+
+            // ... (restante da lógica de fetch de dados) ...
             const todayISO = getSaoPauloDateString();
             const todayDayName = getNormalizedDayName();
-
             const weekDays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
-
             const { data: allWorkoutPlans } = await supabase
                 .from('planos_treino')
                 .select('id, dia_semana')
                 .eq('usuario_id', authUser.id);
-
             let workoutProgress = 0;
             let weeklyProgress: WeeklyProgress[] = [];
-
             if (allWorkoutPlans && allWorkoutPlans.length > 0) {
                 const planIds = allWorkoutPlans.map(p => p.id);
                 const { data: allExercises } = await supabase
                     .from('exercicios_treino')
                     .select('plano_id, concluido')
                     .in('plano_id', planIds);
-
                 const progressByPlanId = allWorkoutPlans.reduce((acc, plan) => {
                     const exercisesForPlan = allExercises?.filter(e => e.plano_id === plan.id) ?? [];
                     const completed = exercisesForPlan.filter(e => e.concluido).length;
@@ -449,7 +432,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     acc[plan.id] = total > 0 ? Math.round((completed / total) * 100) : 0;
                     return acc;
                 }, {} as Record<string, number>);
-
                 weeklyProgress = weekDays.map(day => {
                     const planForDay = allWorkoutPlans.find(p => p.dia_semana.toLowerCase() === day);
                     return {
@@ -457,7 +439,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         progress: planForDay ? progressByPlanId[planForDay.id] : 0
                     };
                 });
-
                 const todayPlan = allWorkoutPlans.find(p => p.dia_semana.toLowerCase() === todayDayName);
                 if (todayPlan) {
                     workoutProgress = progressByPlanId[todayPlan.id];
@@ -468,57 +449,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     progress: 0
                 }));
             }
-
             let dietProgress = 0;
-
             const { data: dietPlanToday } = await supabase
                 .from('planos_dieta')
-                .select(`
-                    id,
-                    refeicoes_dieta (
-                        id,
-                        nome,
-                        horario,
-                        descricao,
-                        calorias,
-                        confirmada
-                    )
-                `)
+                .select(`id,refeicoes_dieta (id,nome,horario,descricao,calorias,confirmada)`)
                 .eq('usuario_id', authUser.id)
                 .eq('dia_semana', todayDayName)
                 .maybeSingle();
-
             if (dietPlanToday && dietPlanToday.refeicoes_dieta) {
                 const meals = dietPlanToday.refeicoes_dieta as any[];
                 const totalMeals = meals.length;
                 const confirmedMeals = meals.filter(m => m.confirmada).length;
-
                 if (totalMeals > 0) {
                     dietProgress = Math.round((confirmedMeals / totalMeals) * 100);
                 }
-
                 dispatch({
                     type: 'SET_DIET_PLAN',
                     payload: [{
                         day: todayDayName,
-                        meals: meals.map(m => ({
-                            ...m,
-                            name: m.nome,
-                            time: m.horario,
-                            description: m.descricao
-                        }))
+                        meals: meals.map(m => ({ ...m, name: m.nome, time: m.horario, description: m.descricao }))
                     }]
                 });
             }
-
             const { data: waterRecords } = await supabase
                 .from('registro_agua')
                 .select('consumido_ml')
                 .eq('usuario_id', authUser.id)
                 .eq('data', todayISO);
-
             const totalWaterConsumedToday = waterRecords?.reduce((sum, record) => sum + record.consumido_ml, 0) ?? 0;
-
             const { data: intensiveModeData } = await supabase
                 .from('modo_intensivo')
                 .select('dias_consecutivos, intensidade, melhor_sequencia')
@@ -526,7 +484,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 .order('criado_em', { ascending: false })
                 .limit(1)
                 .maybeSingle();
-
             dispatch({
                 type: 'SET_DASHBOARD_DATA',
                 payload: {
@@ -539,10 +496,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     weeklyProgress,
                 },
             });
-
             dispatch({ type: 'SET_LOADING', payload: false });
         };
-
         fetchInitialData();
     }, [authUser]);
 

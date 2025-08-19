@@ -1,7 +1,7 @@
-// import React from 'react';
+import React, { useEffect } from 'react'; // CORREÇÃO: Importa useEffect
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { AppProvider } from './context/AppContext';
+import { AppProvider, useApp } from './context/AppContext'; // CORREÇÃO: Importa useApp
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -23,9 +23,18 @@ const PublicRoutesLayout: React.FC = () => {
  */
 const AppRoutes: React.FC = () => {
     const { user, loading } = useAuth();
+    const { state } = useApp(); // CORREÇÃO: Obtém o estado do AppContext
+
+    // CORREÇÃO: Efeito para aplicar ou remover a classe 'dark' no <html>
+    useEffect(() => {
+        if (state.darkMode) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [state.darkMode]); // Re-executa sempre que o estado de darkMode mudar
 
     // Exibe um indicador de carregamento enquanto a sessão do usuário é verificada.
-    // Isso evita um "flash" da tela de login para usuários já autenticados.
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -43,18 +52,14 @@ const AppRoutes: React.FC = () => {
             />
 
             {/* --- Rotas Públicas --- */}
-            {/* Rotas aninhadas sob um layout que só permite acesso a usuários não logados */}
             <Route element={<PublicRoutesLayout />}>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
             </Route>
 
             {/* --- Rotas Protegidas --- */}
-            {/* Rotas aninhadas sob o layout de proteção que exige autenticação */}
             <Route element={<ProtectedRoute />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
-                {/* Adicione outras rotas que precisam de login aqui */}
-                {/* Ex: <Route path="/perfil" element={<ProfilePage />} /> */}
             </Route>
 
             {/* Rota de fallback para qualquer URL não encontrada */}

@@ -8,31 +8,36 @@ import { useTranslation } from '../../data/translations';
 
 export const GoalsTab: React.FC = () => {
   const { state } = useApp();
-  const t = useTranslation(state.user?.preferences.language);
+  
+  // CORREÇÃO 1: Acesso seguro à preferência de idioma.
+  const t = useTranslation(state.user?.preferences?.language);
 
+  // CORREÇÃO 2: Acesso seguro aos dados do estado, com valores padrão (0) para evitar quebras.
   const goals = [
     {
       title: 'Meta de Treino Diária',
       description: 'Complete todos os exercícios do dia',
-      progress: state.dailyGoals.workout,
+      progress: state.dailyGoals?.workout ?? 0,
       color: 'blue' as const,
       icon: Target,
     },
     {
       title: 'Meta de Dieta Diária',
       description: 'Confirme todas as refeições planejadas',
-      progress: state.dailyGoals.diet,
+      progress: state.dailyGoals?.diet ?? 0,
       color: 'green' as const,
       icon: TrendingUp,
     },
     {
       title: 'Meta de Água Diária',
       description: 'Consuma a quantidade recomendada de água',
-      progress: (state.waterIntake.consumed / state.waterIntake.goal) * 100,
+      progress: ((state.waterIntake?.consumed ?? 0) / (state.waterIntake?.goal || 1)) * 100,
       color: 'blue' as const,
       icon: Target,
     },
   ];
+
+  const weeklyWorkoutProgress = state.dailyGoals?.workout ?? 0;
 
   return (
     <div className="space-y-6">
@@ -56,6 +61,7 @@ export const GoalsTab: React.FC = () => {
             >
               <Card className="p-6">
                 <div className="flex items-center gap-4 mb-6">
+                  {/* Este trecho com classes dinâmicas pode falhar em produção. O ideal seria um mapeamento. */}
                   <div className={`p-3 rounded-lg bg-${goal.color}-500/20`}>
                     <Icon size={24} className={`text-${goal.color}-400`} />
                   </div>
@@ -128,14 +134,14 @@ export const GoalsTab: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="w-20">
                   <ProgressBar
-                    progress={index === 0 ? state.dailyGoals.workout : 0}
+                    progress={index === 0 ? weeklyWorkoutProgress : 0}
                     color="blue"
                     size="sm"
                     showPercentage={false}
                   />
                 </div>
                 <span className="text-sm text-gray-400 w-12 text-right">
-                  {index === 0 ? `${Math.round(state.dailyGoals.workout)}%` : '0%'}
+                  {index === 0 ? `${Math.round(weeklyWorkoutProgress)}%` : '0%'}
                 </span>
               </div>
             </div>

@@ -1,11 +1,10 @@
-// DashboardLayout.tsx
 import React, { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Sidebar } from '../components/Sidebar';
 import { Button } from '../components/Button';
-import WelcomeWizard from '../pages/WelcomeWizard'; // <- default import (ajuste aqui)
+import WelcomeWizard from '../pages/WelcomeWizard'; // <- default import
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabase';
 
@@ -24,7 +23,6 @@ export const DashboardLayout: React.FC = () => {
         return;
       }
 
-      // Fallback rápido: cache local por usuário
       const localKey = `wg_wizard_done_${user.id}`;
       if (localStorage.getItem(localKey) === '1') {
         if (!cancelled) {
@@ -34,10 +32,9 @@ export const DashboardLayout: React.FC = () => {
         return;
       }
 
-      // Checagem no Supabase: se já existir linha em 'usuarios', não mostra o wizard
       const { data, error } = await supabase
         .from('usuarios')
-        .select('id') // seleciona mínimo
+        .select('id')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -45,8 +42,6 @@ export const DashboardLayout: React.FC = () => {
 
       if (error) {
         console.error('Erro ao checar perfil:', error);
-        // Se der erro de rede/consulta, você decide: mostrar ou ocultar.
-        // Aqui vou manter visível para garantir onboarding.
         dispatch({ type: 'SHOW_WIZARD', payload: true });
       } else {
         const exists = !!data;
@@ -92,7 +87,6 @@ export const DashboardLayout: React.FC = () => {
         </main>
       </div>
 
-      {/* Só renderiza o wizard depois da checagem para evitar flicker */}
       {!checkingProfile && state.showWizard && <WelcomeWizard />}
     </div>
   );

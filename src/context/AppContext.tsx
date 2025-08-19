@@ -2,7 +2,7 @@ import React, { createContext, useReducer, useContext, ReactNode, useEffect } fr
 import { useAuth } from './AuthContext';
 import { supabase } from '../supabase';
 
-// --- TIPAGENS (SEU CÓDIGO ORIGINAL) ---
+// --- TIPAGENS (SEU CÓDIGO ORIGINAL - SEM ALTERAÇÕES) ---
 
 export interface UserProfile {
   id: string;
@@ -47,7 +47,6 @@ export interface DietPlan {
   }>;
 }
 
-// NOVO: Tipagem para os dados que o dashboard busca
 export interface DashboardData {
   workoutProgress: number;
   dietProgress: number;
@@ -55,7 +54,6 @@ export interface DashboardData {
   consecutiveDays: number;
 }
 
-// Tipagem para o estado global (seu original + 1 linha)
 interface AppState {
   user: UserProfile | null;
   isAuthenticated: boolean;
@@ -67,14 +65,12 @@ interface AppState {
   intensiveMode: { consecutiveDays: number; intensity: number };
   isGeneratingPlan: boolean;
   hasCompletedProfile: boolean;
-  // NOVO: Adicionado para evitar o erro no DashboardTab
   dailyProgress: {
     workout: number;
     diet: number;
   };
 }
 
-// Ações (seu original + 1 linha)
 type Action =
   | { type: 'LOGIN_SUCCESS'; payload: UserProfile }
   | { type: 'LOGOUT' }
@@ -87,10 +83,8 @@ type Action =
   | { type: 'ADD_WATER'; payload: number }
   | { type: 'SET_GENERATING_PLAN'; payload: boolean }
   | { type: 'SET_PROFILE_COMPLETED'; payload: boolean }
-  // NOVO: Ação para carregar os dados do dashboard
   | { type: 'SET_DASHBOARD_DATA'; payload: DashboardData };
 
-// Estado inicial completo (seu original + 1 linha)
 const initialState: AppState = {
   user: null,
   isAuthenticated: false,
@@ -102,14 +96,12 @@ const initialState: AppState = {
   intensiveMode: { consecutiveDays: 5, intensity: 75 },
   isGeneratingPlan: false,
   hasCompletedProfile: false,
-  // NOVO: Define o valor inicial para dailyProgress para corrigir o erro
   dailyProgress: {
     workout: 0,
     diet: 0,
   },
 };
 
-// Reducer (seu original + novo case)
 const appReducer = (state: AppState, action: Action): AppState => {
   switch (action.type) {
     case 'LOGIN_SUCCESS':
@@ -117,7 +109,6 @@ const appReducer = (state: AppState, action: Action): AppState => {
         ...state,
         isAuthenticated: true,
         user: action.payload,
-        // loading é tratado no useEffect para aguardar todos os dados
       };
     case 'LOGOUT':
       return {
@@ -166,7 +157,6 @@ const appReducer = (state: AppState, action: Action): AppState => {
     case 'SET_PROFILE_COMPLETED':
       return { ...state, hasCompletedProfile: action.payload };
     
-    // NOVO: Case para lidar com a ação dos dados do dashboard
     case 'SET_DASHBOARD_DATA':
         return {
             ...state,
@@ -189,11 +179,41 @@ const appReducer = (state: AppState, action: Action): AppState => {
   }
 };
 
-const AppContext = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | undefined>(undefined);
+// NOVO: Adiciona a função 'addWater' ao tipo do contexto para ser exportada
+type AppContextType = {
+  state: AppState;
+  dispatch: React.Dispatch<Action>;
+  addWater: (amount: number) => Promise<void>;
+};
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const { user: authUser } = useAuth();
+
+  // NOVO: Função para registrar o consumo de água no banco de dados
+  const addWater = async (amount: number) => {
+    if (!state.user) {
+      throw new Error("Usuário não autenticado. Não é possível registrar água.");
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    const { error } = await supabase.from('registro_agua').insert({
+      usuario_id: state.user.id,
+      consumido_ml: amount,
+      data: today,
+    });
+
+    if (error) {
+      console.error("Erro ao registrar consumo de água:", error);
+      throw error; // Lança o erro para que a UI possa tratá-lo (ex: mostrar um alerta)
+    }
+
+    // Se a inserção no DB for bem-sucedida, atualiza o estado local
+    dispatch({ type: 'ADD_WATER', payload: amount });
+  };
 
   useEffect(() => {
     if (!authUser) {
@@ -204,7 +224,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const fetchInitialData = async () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      // Busca perfil do usuário (lógica original melhorada)
       const { data: userProfile, error: userError } = await supabase
         .from('usuarios')
         .select('*')
@@ -213,27 +232,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (userError || !userProfile) {
         console.error("Erro ao buscar perfil:", userError?.message);
-        dispatch({ type: 'LOGOUT' }); // Desloga se não encontrar perfil
+        dispatch({ type: 'LOGOUT' });
         return;
       }
       dispatch({ type: 'LOGIN_SUCCESS', payload: userProfile });
       const isProfileComplete = !!(userProfile.nome && userProfile.objetivos);
       dispatch({ type: 'SET_PROFILE_COMPLETED', payload: isProfileComplete });
 
-      // NOVO: Busca os dados do dashboard em paralelo
-      // (Esta é a lógica que estávamos adicionando)
       const today = new Date().toISOString().slice(0, 10);
-      const waterConsumed = 0; // Substitua com sua lógica de fetch
-      const workoutProgress = 0; // Substitua com sua lógica de fetch
-      const dietProgress = 0; // Substitua com sua lógica de fetch
-      const consecutiveDays = 0; // Substitua com sua lógica de fetch
+
+      // NOVO: Busca o total de água consumido no dia de hoje no banco
+      const { data: waterRecords } = await supabase
+        .from('registro_agua')
+        .select('consumido_ml')
+        .eq('usuario_id', authUser.id)
+        .eq('data', today);
+
+      // Soma todos os registros do dia para obter o total
+      const totalWaterConsumedToday = waterRecords?.reduce((sum, record) => sum + record.consumido_ml, 0) ?? 0;
+
+      // Placeholders para as outras métricas (serão conectadas depois)
+      const workoutProgress = 0;
+      const dietProgress = 0;
+      const consecutiveDays = 0;
       
       dispatch({
         type: 'SET_DASHBOARD_DATA',
-        payload: { workoutProgress, dietProgress, waterConsumed, consecutiveDays },
+        payload: { 
+            workoutProgress, 
+            dietProgress, 
+            waterConsumed: totalWaterConsumedToday, // Usa o valor real do banco
+            consecutiveDays 
+        },
       });
 
-      // Define o loading como false APÓS todos os dados serem buscados
       dispatch({ type: 'SET_LOADING', payload: false });
     };
 
@@ -241,7 +273,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [authUser]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch }}>
+    // NOVO: Disponibiliza a função 'addWater' para todos os componentes filhos
+    <AppContext.Provider value={{ state, dispatch, addWater }}>
       {children}
     </AppContext.Provider>
   );

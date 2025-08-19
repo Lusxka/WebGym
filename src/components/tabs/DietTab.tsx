@@ -5,81 +5,31 @@ import { useApp } from '../../context/AppContext';
 import { Card } from '../Card';
 import { Button } from '../Button';
 import { useTranslation } from '../../data/translations';
-import { UserProfile } from '../../context/AppContext';
-
-// Interface para preferências do usuário
-interface UserPreferences {
-    shareWorkouts: boolean;
-    shareDiets: boolean;
-    darkMode: boolean;
-    language: 'pt_BR' | 'en_US';
-}
-
-// Função auxiliar para normalizar nome do dia da semana
-const getNormalizedDayName = (date: Date): string => {
-    const dayName = date.toLocaleString('pt-BR', { weekday: 'long' }).replace('-feira', '');
-    switch (dayName.toLowerCase()) {
-        case 'terça':
-            return 'terca';
-        case 'sábado':
-            return 'sabado';
-        default:
-            return dayName;
-    }
-};
 
 export const DietTab: React.FC = () => {
     const { state, confirmMeal } = useApp();
     const { dietPlan, loading } = state;
     const [isLoading, setIsLoading] = useState<string | null>(null);
 
-    const todayDayName = getNormalizedDayName(new Date());
+    const todayDayName = useMemo(() => {
+        const date = new Date();
+        const dayName = date.toLocaleString('pt-BR', { weekday: 'long' }).replace('-feira', '');
+        switch (dayName.toLowerCase()) {
+            case 'terça': return 'terca';
+            case 'sábado': return 'sabado';
+            default: return dayName.toLowerCase();
+        }
+    }, []);
 
-    // Memoriza o plano de dieta do dia, com proteção caso day seja undefined
     const todayDiet = useMemo(() => {
         if (!dietPlan || dietPlan.length === 0) return null;
-        return dietPlan.find(d => d.day?.toLowerCase() === todayDayName.toLowerCase()) || null;
+        return dietPlan.find(d => d.day?.toLowerCase() === todayDayName) || null;
     }, [dietPlan, todayDayName]);
 
-    // Renderização enquanto carrega
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
-                <Utensils size={48} className="animate-pulse text-green-500 dark:text-green-400 mb-4" />
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Carregando Seu Plano de Dieta...</h2>
-            </div>
-        );
-    }
+    const completedMealsCount = todayDiet?.meals?.filter(m => m.confirmed).length ?? 0;
+    const totalMeals = todayDiet?.meals?.length ?? 0;
 
-    // Renderização se não houver plano de dieta
-    if (!todayDiet || !todayDiet.meals || todayDiet.meals.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
-                <Zap size={48} className="text-yellow-500 dark:text-yellow-400 mb-4" />
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Dia de Descanso ou Sem Plano</h2>
-                <p className="text-gray-600 dark:text-gray-400 max-w-md">
-                    Não há refeições planejadas para hoje. Aproveite o descanso!
-                </p>
-            </div>
-        );
-    }
-
-    const completedMealsCount = todayDiet.meals.filter(m => m.confirmed).length;
-    const totalMeals = todayDiet.meals.length;
-
-    // Parse das preferências do usuário
-    const parsedPreferences = useMemo((): UserPreferences => {
-        try {
-            if (state.user?.preferencias && typeof state.user.preferencias === 'string') {
-                return JSON.parse(state.user.preferencias);
-            }
-        } catch (error) {
-            console.error("Falha ao fazer parse das preferências:", error);
-        }
-        return { shareWorkouts: false, shareDiets: false, darkMode: true, language: 'pt_BR' };
-    }, [state.user?.preferencias]);
-
-    const t = useTranslation(parsedPreferences.language);
+    const t = useTranslation(state.user?.preferencias ? JSON.parse(state.user.preferencias).language : 'pt_BR');
 
     const handleConfirmMeal = async (mealId: string) => {
         setIsLoading(mealId);
@@ -92,6 +42,27 @@ export const DietTab: React.FC = () => {
             setIsLoading(null);
         }
     };
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
+                <Utensils size={48} className="animate-pulse text-green-500 dark:text-green-400 mb-4" />
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Carregando Seu Plano de Dieta...</h2>
+            </div>
+        );
+    }
+
+    if (!todayDiet || !todayDiet.meals || todayDiet.meals.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
+                <Zap size={48} className="text-yellow-500 dark:text-yellow-400 mb-4" />
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Dia de Descanso ou Sem Plano</h2>
+                <p className="text-gray-600 dark:text-gray-400 max-w-md">
+                    Não há refeições planejadas para hoje. Aproveite o descanso!
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -170,7 +141,7 @@ export const DietTab: React.FC = () => {
                         </div>
                         <div className="p-4 bg-gray-100 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-center">
                             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
-                                {Math.round((completedMealsCount / totalMeals) * 100)}%
+                                {totalMeals > 0 ? Math.round((completedMealsCount / totalMeals) * 100) : 0}%
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">Meta alcançada</div>
                         </div>

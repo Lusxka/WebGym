@@ -35,7 +35,6 @@ export interface WorkoutPlan {
   }>;
 }
 
-// Tipagem para o plano de dieta
 export interface DietPlan {
   day: string;
   meals: Array<{
@@ -48,7 +47,7 @@ export interface DietPlan {
   }>;
 }
 
-// Tipagem para o estado global (com dietPlan e waterIntake)
+// Tipagem para o estado global (com intensiveMode)
 interface AppState {
   user: UserProfile | null;
   isAuthenticated: boolean;
@@ -57,11 +56,12 @@ interface AppState {
   workoutPlan: WorkoutPlan[] | null;
   dietPlan: DietPlan[];
   waterIntake: { consumed: number; goal: number };
+  intensiveMode: { consecutiveDays: number; intensity: number }; // ADICIONADO
   isGeneratingPlan: boolean;
   hasCompletedProfile: boolean;
 }
 
-// Ações atualizadas para incluir dieta e água
+// Ações
 type Action =
   | { type: 'LOGIN_SUCCESS'; payload: UserProfile }
   | { type: 'LOGOUT' }
@@ -84,11 +84,12 @@ const initialState: AppState = {
   workoutPlan: null,
   dietPlan: [],
   waterIntake: { consumed: 0, goal: 2000 },
+  intensiveMode: { consecutiveDays: 5, intensity: 75 }, // ADICIONADO (com valores de exemplo)
   isGeneratingPlan: false,
   hasCompletedProfile: false,
 };
 
-// Reducer com a lógica para dieta e água
+// Reducer (sem necessidade de novas ações para este caso)
 const appReducer = (state: AppState, action: Action): AppState => {
   switch (action.type) {
     case 'LOGIN_SUCCESS':

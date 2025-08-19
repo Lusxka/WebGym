@@ -9,10 +9,10 @@ export interface UserProfile {
     idade: number | null;
     peso: number | null;
     altura: number | null;
-    sexo: 'masculino' | 'feminino' | null; // CORREÇÃO AQUI
+    sexo: 'masculino' | 'feminino' | null;
     objetivo: string | null;
     preferencias: string | null;
-    nivel: 'beginner' | 'intermediate' | 'advanced' | null;
+    nivel: 'iniciante' | 'intermediario' | 'avancado' | null; // CORREÇÃO AQUI
     criado_em: string;
     avatar_url?: string;
 }
@@ -94,7 +94,7 @@ type Action =
     | { type: 'CONFIRM_MEAL'; payload: { day: string; mealId: string } }
     | { type: 'ADD_WATER'; payload: number }
     | { type: 'SET_GENERATING_PLAN'; payload: boolean }
-    | { type; 'SET_PROFILE_COMPLETED'; payload: boolean }
+    | { type: 'SET_PROFILE_COMPLETED'; payload: boolean }
     | { type: 'SET_DASHBOARD_DATA'; payload: DashboardData };
 
 const initialState: AppState = {

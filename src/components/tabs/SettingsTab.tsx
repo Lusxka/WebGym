@@ -35,8 +35,8 @@ export const SettingsTab: React.FC = () => {
         idade: state.user?.idade?.toString() || '',
         peso: state.user?.peso?.toString() || '',
         altura: state.user?.altura?.toString() || '',
-        sexo: state.user?.sexo || 'male', // CORREÇÃO: Valor inicial em minúscula
-        nivel: state.user?.nivel || 'beginner',
+        sexo: state.user?.sexo || 'masculino',
+        nivel: state.user?.nivel || 'iniciante', // CORREÇÃO: Valor inicial em português
         // CORREÇÃO: Altera 'objetivos' para 'objetivo'
         objetivo: (state.user as UserProfile)?.objetivo || '',
     });
@@ -51,8 +51,8 @@ export const SettingsTab: React.FC = () => {
                 idade: state.user.idade?.toString() || '',
                 peso: state.user.peso?.toString() || '',
                 altura: state.user.altura?.toString() || '',
-                sexo: state.user.sexo || 'male', // CORREÇÃO: Valor inicial em minúscula
-                nivel: state.user.nivel || 'beginner',
+                sexo: state.user.sexo || 'masculino',
+                nivel: state.user.nivel || 'iniciante', // CORREÇÃO: Valor inicial em português
                 // CORREÇÃO: Altera 'objetivos' para 'objetivo'
                 objetivo: state.user.objetivo || '',
             });
@@ -70,8 +70,8 @@ export const SettingsTab: React.FC = () => {
                 idade: formData.idade ? parseInt(formData.idade) : null,
                 peso: formData.peso ? parseFloat(formData.peso) : null,
                 altura: formData.altura ? parseInt(formData.altura) : null,
-                sexo: formData.sexo as 'male' | 'female' | 'masculino' | 'feminino' | 'outro', // CORREÇÃO: Adicionando mais opções
-                nivel: formData.nivel as 'beginner' | 'intermediate' | 'advanced',
+                sexo: formData.sexo as 'masculino' | 'feminino' | 'outro',
+                nivel: formData.nivel as 'iniciante' | 'intermediario' | 'avancado', // CORREÇÃO: Tipagem em português
                 objetivo: formData.objetivo,
                 preferencias: JSON.stringify(preferences),
             });
@@ -137,19 +137,18 @@ export const SettingsTab: React.FC = () => {
                     {/* Gênero */}
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">{t('gender')}</label>
-                        <select value={formData.sexo} onChange={(e) => setFormData(prev => ({ ...prev, sexo: e.target.value as 'masculino' | 'feminino' }))} className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">                
+                        <select value={formData.sexo} onChange={(e) => setFormData(prev => ({ ...prev, sexo: e.target.value as 'masculino' | 'feminino' }))} className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                             <option value="masculino">Masculino</option>
                             <option value="feminino">Feminino</option>
-
                         </select>
                     </div>
                     {/* Nível */}
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">{t('level')}</label>
-                        <select value={formData.nivel} onChange={(e) => setFormData(prev => ({ ...prev, nivel: e.target.value as any }))} className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-                            <option value="beginner">{t('beginner')}</option>
-                            <option value="intermediate">{t('intermediate')}</option>
-                            <option value="advanced">{t('advanced')}</option>
+                        <select value={formData.nivel} onChange={(e) => setFormData(prev => ({ ...prev, nivel: e.target.value as 'iniciante' | 'intermediario' | 'avancado' }))} className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            <option value="iniciante">{t('beginner')}</option>
+                            <option value="intermediario">{t('intermediate')}</option>
+                            <option value="avancado">{t('advanced')}</option>
                         </select>
                     </div>
                 </div>

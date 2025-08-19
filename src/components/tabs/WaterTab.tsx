@@ -9,14 +9,20 @@ import { useTranslation } from '../../data/translations';
 
 export const WaterTab: React.FC = () => {
   const { state, dispatch } = useApp();
-  const t = useTranslation(state.user?.preferences.language);
+  
+  // Acesso seguro à preferência de idioma.
+  const t = useTranslation(state.user?.preferences?.language);
 
   const handleAddWater = (amount: number) => {
     dispatch({ type: 'ADD_WATER', payload: amount });
   };
 
-  const progressPercentage = (state.waterIntake.consumed / state.waterIntake.goal) * 100;
-  const remainingWater = Math.max(0, state.waterIntake.goal - state.waterIntake.consumed);
+  // Acesso seguro aos dados de 'waterIntake' com valores padrão para evitar erros.
+  const consumed = state.waterIntake?.consumed ?? 0;
+  const goal = state.waterIntake?.goal || 1; // Usa 1 para evitar divisão por zero.
+
+  const progressPercentage = (consumed / goal) * 100;
+  const remainingWater = Math.max(0, goal - consumed);
 
   const quickAmounts = [250, 500, 750, 1000];
 
@@ -51,10 +57,10 @@ export const WaterTab: React.FC = () => {
           </motion.div>
 
           <h2 className="text-3xl font-bold text-white mb-2">
-            {state.waterIntake.consumed}ml
+            {consumed}ml
           </h2>
           <p className="text-gray-400">
-            de {state.waterIntake.goal}ml ({Math.round(progressPercentage)}%)
+            de {goal}ml ({Math.round(progressPercentage)}%)
           </p>
         </div>
 
@@ -84,7 +90,7 @@ export const WaterTab: React.FC = () => {
               onClick={() => handleAddWater(amount)}
               variant="outline"
               className="flex flex-col items-center py-4"
-              disabled={state.waterIntake.consumed >= state.waterIntake.goal}
+              disabled={consumed >= goal}
             >
               <Plus size={20} className="mb-1" />
               {amount}ml

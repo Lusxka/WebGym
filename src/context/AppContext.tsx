@@ -2,7 +2,8 @@ import React, { createContext, useReducer, useContext, ReactNode, useEffect } fr
 import { useAuth } from './AuthContext';
 import { supabase } from '../supabase';
 
-// Tipagem para o perfil do usuário, baseada na sua tabela 'usuarios'
+// --- TIPAGENS ---
+
 export interface UserProfile {
   id: string;
   nome: string;
@@ -17,7 +18,6 @@ export interface UserProfile {
   avatar_url?: string;
 }
 
-// Tipagem para o plano de treino que o Gemini irá retornar
 export interface WorkoutPlan {
   day: string;
   name: string;
@@ -35,17 +35,33 @@ export interface WorkoutPlan {
   }>;
 }
 
-// Tipagem para o estado global do AppContext
+// Tipagem para o plano de dieta
+export interface DietPlan {
+  day: string;
+  meals: Array<{
+    id: string;
+    name: string;
+    time: string;
+    description: string;
+    calories: number;
+    confirmed: boolean;
+  }>;
+}
+
+// Tipagem para o estado global (com dietPlan e waterIntake)
 interface AppState {
   user: UserProfile | null;
   isAuthenticated: boolean;
   showWizard: boolean;
   loading: boolean;
   workoutPlan: WorkoutPlan[] | null;
+  dietPlan: DietPlan[];
+  waterIntake: { consumed: number; goal: number };
   isGeneratingPlan: boolean;
   hasCompletedProfile: boolean;
 }
 
+// Ações atualizadas para incluir dieta e água
 type Action =
   | { type: 'LOGIN_SUCCESS'; payload: UserProfile }
   | { type: 'LOGOUT' }
@@ -53,20 +69,26 @@ type Action =
   | { type: 'SHOW_WIZARD'; payload: boolean }
   | { type: 'UPDATE_USER_PROFILE'; payload: Partial<UserProfile> }
   | { type: 'SET_WORKOUT_PLAN'; payload: WorkoutPlan[] }
+  | { type: 'SET_DIET_PLAN'; payload: DietPlan[] }
+  | { type: 'CONFIRM_MEAL'; payload: { day: string; mealId: string } }
+  | { type: 'ADD_WATER'; payload: number }
   | { type: 'SET_GENERATING_PLAN'; payload: boolean }
   | { type: 'SET_PROFILE_COMPLETED'; payload: boolean };
 
-// Estado inicial seguro para evitar erros
+// Estado inicial completo
 const initialState: AppState = {
   user: null,
   isAuthenticated: false,
   showWizard: false,
   loading: true,
   workoutPlan: null,
+  dietPlan: [],
+  waterIntake: { consumed: 0, goal: 2000 },
   isGeneratingPlan: false,
   hasCompletedProfile: false,
 };
 
+// Reducer com a lógica para dieta e água
 const appReducer = (state: AppState, action: Action): AppState => {
   switch (action.type) {
     case 'LOGIN_SUCCESS':
@@ -92,6 +114,32 @@ const appReducer = (state: AppState, action: Action): AppState => {
         };
     case 'SET_WORKOUT_PLAN':
       return { ...state, workoutPlan: action.payload };
+    case 'SET_DIET_PLAN':
+      return { ...state, dietPlan: action.payload };
+    case 'CONFIRM_MEAL':
+      return {
+        ...state,
+        dietPlan: state.dietPlan.map(dayPlan =>
+          dayPlan.day === action.payload.day
+            ? {
+                ...dayPlan,
+                meals: dayPlan.meals.map(meal =>
+                  meal.id === action.payload.mealId
+                    ? { ...meal, confirmed: true }
+                    : meal
+                ),
+              }
+            : dayPlan
+        ),
+      };
+    case 'ADD_WATER':
+      return {
+        ...state,
+        waterIntake: {
+          ...state.waterIntake,
+          consumed: state.waterIntake.consumed + action.payload,
+        },
+      };
     case 'SET_GENERATING_PLAN':
       return { ...state, isGeneratingPlan: action.payload };
     case 'SET_PROFILE_COMPLETED':
@@ -117,7 +165,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const createTemporaryProfile = () => {
-        // Cria um estado temporário seguro sem mostrar o wizard automaticamente
         const temporaryProfile: UserProfile = {
           id: authUser.id,
           nome: authUser.user_metadata?.full_name || authUser.email || 'Novo Usuário',
@@ -152,7 +199,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           
           dispatch({ type: 'LOGIN_SUCCESS', payload: profileData });
           
-          // Verifica se o perfil está completo (tem pelo menos nome e objetivos)
           const isProfileComplete = !!(data.nome && data.objetivos);
           dispatch({ type: 'SET_PROFILE_COMPLETED', payload: isProfileComplete });
         } else {

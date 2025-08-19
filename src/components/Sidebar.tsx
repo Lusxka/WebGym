@@ -23,6 +23,7 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+// 2. Componente interno que contém toda a lógica e JSX da sidebar
 const SidebarContent: React.FC<Omit<SidebarProps, 'isOpen'>> = ({
   activeTab,
   onTabChange,
@@ -52,37 +53,44 @@ const SidebarContent: React.FC<Omit<SidebarProps, 'isOpen'>> = ({
   };
 
   return (
-    // CORREÇÃO: Adicionando classes para modo claro para o container e cores de texto
-    <div className="flex h-full flex-col bg-gray-200 text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-500">
+    // CORREÇÃO: Adicionando classes de modo claro para o container principal
+    <div className="flex h-full flex-col bg-white dark:bg-gray-900 transition-colors duration-500">
       {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b border-gray-300 dark:border-gray-700">
+      {/* CORREÇÃO: Adicionando classes de modo claro para a borda e texto */}
+      <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
             <Dumbbell className="w-5 h-5 text-white" />
           </div>
+          {/* CORREÇÃO: Adicionando classe de modo claro para o texto */}
           <span className="text-xl font-bold text-gray-900 dark:text-white">WebGym</span>
         </div>
         <button
           onClick={onClose}
-          className="lg:hidden p-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-800 transition-colors"
+          // CORREÇÃO: Adicionando classes de modo claro para o hover
+          className="lg:hidden p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
         >
+          {/* CORREÇÃO: Adicionando classes de modo claro para o ícone */}
           <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
         </button>
       </div>
 
       {/* User Info */}
-      <div className="p-6 border-b border-gray-300 dark:border-gray-700">
+      {/* CORREÇÃO: Adicionando classes de modo claro para a borda e texto */}
+      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-4">
           <img
             src={state.user?.avatar_url || `https://ui-avatars.com/api/?name=${state.user?.nome}&background=0D8ABC&color=fff`}
             alt={state.user?.nome || 'Usuário'}
-            className="w-12 h-12 rounded-full object-cover border-2 border-gray-400 dark:border-gray-600"
+            className="w-12 h-12 rounded-full object-cover border-2 border-gray-300 dark:border-gray-600"
           />
           <div className="flex-1 min-w-0">
+            {/* CORREÇÃO: Adicionando classes de modo claro para o texto */}
             <p className="text-gray-900 dark:text-white font-medium truncate">
               {state.user?.nome || 'Usuário'}
             </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+            {/* CORREÇÃO: Adicionando classes de modo claro para o texto */}
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
               {state.hasCompletedProfile ? 'Perfil completo' : 'Complete seu perfil'}
             </p>
           </div>
@@ -107,9 +115,11 @@ const SidebarContent: React.FC<Omit<SidebarProps, 'isOpen'>> = ({
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-lg'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                    // CORREÇÃO: Classes de hover para o modo claro e escuro
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                 } ${isHighlighted ? 'ring-2 ring-orange-400/50 bg-orange-500/10' : ''}`}
               >
+                {/* CORREÇÃO: Classes de cores de ícone para modo claro e escuro */}
                 <Icon className={`w-5 h-5 ${isActive ? 'text-white' : isHighlighted ? 'text-orange-400' : 'text-gray-500 dark:text-gray-400'}`} />
                 <span className="font-medium">{tab.label}</span>
                 {isHighlighted && (
@@ -125,11 +135,13 @@ const SidebarContent: React.FC<Omit<SidebarProps, 'isOpen'>> = ({
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-300 dark:border-gray-700">
+      {/* CORREÇÃO: Adicionando classes de modo claro para a borda e texto */}
+      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
         <button
           onClick={handleSignOut}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-600 dark:text-gray-300 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-200"
         >
+          {/* CORREÇÃO: Garante que a cor do ícone mude */}
           <LogOut className="w-5 h-5" />
           <span className="font-medium">Sair</span>
         </button>
@@ -138,6 +150,8 @@ const SidebarContent: React.FC<Omit<SidebarProps, 'isOpen'>> = ({
   );
 };
 
+
+// 3. Componente principal exportado
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onTabChange,
@@ -154,7 +168,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             animate={{ x: 0 }}
             exit={{ x: -300 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed inset-y-0 left-0 z-50 w-80 bg-gray-200 dark:bg-gray-900 border-r border-gray-300 dark:border-gray-700 lg:hidden"
+            // CORREÇÃO: Adicionando classes de modo claro
+            className="fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 lg:hidden"
           >
             <SidebarContent
               activeTab={activeTab}
@@ -167,7 +182,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Desktop */}
       <div 
-        className="hidden lg:flex lg:w-80 lg:flex-col bg-gray-200 dark:bg-gray-900 border-r border-gray-300 dark:border-gray-700"
+        // CORREÇÃO: Adicionando classes de modo claro
+        className="hidden lg:flex lg:w-80 lg:flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700"
       >
         <SidebarContent
           activeTab={activeTab}

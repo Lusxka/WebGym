@@ -1,34 +1,39 @@
-import React, { useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Apple, Clock, Zap, Check } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Card } from '../Card';
 import { Button } from '../Button';
-import { mockDiets } from '../../data/diets';
 import { useTranslation } from '../../data/translations';
 
 export const DietTab: React.FC = () => {
-  const { state, dispatch } = useApp();
-  
+  // Pega a nova função 'confirmMeal' do contexto, não precisamos mais do dispatch aqui.
+  const { state, confirmMeal } = useApp();
   const t = useTranslation(state.user?.preferences?.language);
+  const [isLoading, setIsLoading] = useState<string | null>(null); // Controla o loading por botão
 
-  useEffect(() => {
-    // CORREÇÃO: Verifica se 'dietPlan' não existe OU se está vazio.
-    if (!state.dietPlan || state.dietPlan.length === 0) {
-      dispatch({ type: 'SET_DIET_PLAN', payload: mockDiets });
+  // Determina o dia da semana atual dinamicamente
+  const todayDayName = new Date().toLocaleString('pt-BR', { weekday: 'long' }).replace('-feira', '');
+  
+  // Encontra o plano de dieta para o dia de hoje no estado global
+  const todayDiet = state.dietPlan?.find(d => d.day.toLowerCase() === todayDayName.toLowerCase());
+
+  // Função que chama o 'confirmMeal' do contexto e gerencia o estado de loading
+  const handleConfirmMeal = async (day: string, mealId: string) => {
+    setIsLoading(mealId); // Ativa o loading para o botão específico
+    try {
+      await confirmMeal(day, mealId);
+    } catch (error) {
+      alert('Não foi possível confirmar a refeição. Tente novamente.');
+    } finally {
+      setIsLoading(null); // Desativa o loading, seja com sucesso ou erro
     }
-    // Depende do array em si, não do seu tamanho, para maior segurança.
-  }, [state.dietPlan, dispatch]);
-
-  const handleConfirmMeal = (day: string, mealId: string) => {
-    dispatch({
-      type: 'CONFIRM_MEAL',
-      payload: { day, mealId }
-    });
   };
 
-  // Garante que 'todayDiet' não quebre se 'dietPlan' for undefined.
-  const todayDiet = state.dietPlan?.find(d => d.day === 'monday'); // Mock today as Monday
+  // Mostra um loader principal enquanto os dados iniciais do app estão carregando
+  if (state.loading) {
+    return <div className="text-center text-white p-8">Carregando plano de dieta...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -40,15 +45,14 @@ export const DietTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Today's meals */}
-      {todayDiet ? (
+      {/* Renderização condicional: mostra a dieta do dia ou uma mensagem de aviso */}
+      {todayDiet && todayDiet.meals.length > 0 ? (
         <div className="space-y-4">
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <Apple className="text-green-400" size={24} />
               <h2 className="text-xl font-bold text-white">Refeições de Hoje</h2>
             </div>
-
             <div className="space-y-4">
               {todayDiet.meals.map((meal) => (
                 <motion.div
@@ -56,13 +60,11 @@ export const DietTab: React.FC = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   className={`p-4 rounded-lg border-2 transition-all ${
-                    meal.confirmed
-                      ? 'border-green-500 bg-green-500/10'
-                      : 'border-gray-600 bg-gray-700/50'
+                    meal.confirmed ? 'border-green-500 bg-green-500/10' : 'border-gray-600 bg-gray-700/50'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                    <div className="flex-1 pr-4">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold text-white">{meal.name}</h3>
                         <div className="flex items-center gap-1 text-gray-400">
@@ -70,23 +72,21 @@ export const DietTab: React.FC = () => {
                           <span className="text-sm">{meal.time}</span>
                         </div>
                       </div>
-                      
                       <p className="text-gray-300 mb-3">{meal.description}</p>
-                      
                       <div className="flex items-center gap-1 text-orange-400">
                         <Zap size={16} />
                         <span className="text-sm font-medium">{meal.calories} calorias</span>
                       </div>
                     </div>
-                    
                     <Button
-                      onClick={() => handleConfirmMeal('monday', meal.id)}
-                      disabled={meal.confirmed}
+                      onClick={() => handleConfirmMeal(todayDayName, meal.id)}
+                      disabled={meal.confirmed || isLoading === meal.id}
                       variant={meal.confirmed ? 'secondary' : 'primary'}
                       icon={meal.confirmed ? Check : undefined}
                       size="sm"
+                      className="min-w-[120px]" // Garante largura mínima para o texto
                     >
-                      {meal.confirmed ? 'Confirmada' : t('confirmMeal')}
+                      {isLoading === meal.id ? 'Confirmando...' : meal.confirmed ? 'Confirmada' : t('confirmMeal')}
                     </Button>
                   </div>
                 </motion.div>
@@ -94,25 +94,22 @@ export const DietTab: React.FC = () => {
             </div>
           </Card>
 
-          {/* Daily summary */}
+          {/* Resumo do Dia (dinâmico) */}
           <Card className="p-6">
             <h3 className="text-lg font-bold text-white mb-4">Resumo do Dia</h3>
-            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="p-4 bg-gray-700/50 rounded-lg text-center">
                 <div className="text-2xl font-bold text-green-400 mb-1">
-                  {todayDiet.meals.filter(m => m.confirmed).length}
+                  {todayDiet.meals.filter(m => m.confirmed).length} / {todayDiet.meals.length}
                 </div>
                 <div className="text-sm text-gray-400">Refeições confirmadas</div>
               </div>
-              
               <div className="p-4 bg-gray-700/50 rounded-lg text-center">
                 <div className="text-2xl font-bold text-orange-400 mb-1">
                   {todayDiet.meals.reduce((acc, meal) => acc + meal.calories, 0)}
                 </div>
                 <div className="text-sm text-gray-400">Calorias totais</div>
               </div>
-              
               <div className="p-4 bg-gray-700/50 rounded-lg text-center">
                 <div className="text-2xl font-bold text-blue-400 mb-1">
                   {Math.round((todayDiet.meals.filter(m => m.confirmed).length / todayDiet.meals.length) * 100)}%
@@ -125,11 +122,10 @@ export const DietTab: React.FC = () => {
       ) : (
         <Card className="p-6 text-center">
           <Apple className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">Nenhuma dieta configurada</h3>
-          <p className="text-gray-400 mb-4">
-            Configure sua dieta personalizada através do assistente de configuração.
+          <h3 className="text-lg font-semibold text-white mb-2">Nenhuma dieta para hoje</h3>
+          <p className="text-gray-400">
+            Parece que não há um plano de dieta cadastrado para {todayDayName}.
           </p>
-          <Button>Configurar Dieta</Button>
         </Card>
       )}
     </div>

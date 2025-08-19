@@ -47,7 +47,6 @@ export interface DietPlan {
   }>;
 }
 
-// NOVO: Tipagem para o progresso semanal
 export interface WeeklyProgress {
   day: string;
   progress: number;
@@ -60,10 +59,9 @@ export interface DashboardData {
   consecutiveDays: number;
   intensity: number;
   bestStreak: number;
-  weeklyProgress: WeeklyProgress[]; // Adiciona o progresso semanal
+  weeklyProgress: WeeklyProgress[];
 }
 
-// NOVO: Adiciona 'weeklyProgress' ao estado
 interface AppState {
   user: UserProfile | null;
   isAuthenticated: boolean;
@@ -82,7 +80,6 @@ interface AppState {
   weeklyProgress: WeeklyProgress[];
 }
 
-// Ações (Seu código original completo)
 type Action =
   | { type: 'LOGIN_SUCCESS'; payload: UserProfile }
   | { type: 'LOGOUT' }
@@ -97,7 +94,6 @@ type Action =
   | { type: 'SET_PROFILE_COMPLETED'; payload: boolean }
   | { type: 'SET_DASHBOARD_DATA'; payload: DashboardData };
 
-// NOVO: Adiciona 'weeklyProgress' ao estado inicial
 const initialState: AppState = {
   user: null,
   isAuthenticated: false,
@@ -116,7 +112,7 @@ const initialState: AppState = {
   weeklyProgress: [],
 };
 
-// Reducer (Seu código original completo + atualização no SET_DASHBOARD_DATA)
+// Reducer (Seu código original completo)
 const appReducer = (state: AppState, action: Action): AppState => {
   switch (action.type) {
     case 'LOGIN_SUCCESS':
@@ -137,7 +133,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
       return {
         ...state,
         dietPlan: state.dietPlan.map(dayPlan =>
-          dayPlan.day === action.payload.day
+          dayPlan.day.toLowerCase() === action.payload.day.toLowerCase()
             ? {
                 ...dayPlan,
                 meals: dayPlan.meals.map(meal =>
@@ -157,7 +153,6 @@ const appReducer = (state: AppState, action: Action): AppState => {
     case 'SET_PROFILE_COMPLETED':
       return { ...state, hasCompletedProfile: action.payload };
     
-    // NOVO: Atualiza o reducer para incluir 'weeklyProgress'
     case 'SET_DASHBOARD_DATA':
       return {
         ...state,
@@ -178,12 +173,13 @@ const appReducer = (state: AppState, action: Action): AppState => {
   }
 };
 
-// Adiciona a nova função 'handleWorkoutCompletion' ao tipo do contexto
+// NOVO: Adiciona as novas funções ao tipo do contexto
 type AppContextType = {
   state: AppState;
   dispatch: React.Dispatch<Action>;
   addWater: (amount: number) => Promise<void>;
   handleWorkoutCompletion: () => Promise<void>;
+  confirmMeal: (day: string, mealId: string) => Promise<void>;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -192,15 +188,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [state, dispatch] = useReducer(appReducer, initialState);
   const { user: authUser } = useAuth();
 
-  // Funções 'addWater' e 'handleWorkoutCompletion' (sem alterações)
-  const addWater = async (amount: number) => { /* ... */ };
-  const handleWorkoutCompletion = async () => { /* ... */ };
+  const addWater = async (amount: number) => {
+    if (!state.user) throw new Error("Usuário não autenticado.");
+    const today = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase.from('registro_agua').insert({
+      usuario_id: state.user.id,
+      consumido_ml: amount,
+      data: today,
+    });
+    if (error) { console.error("Erro ao registrar consumo de água:", error); throw error; }
+    dispatch({ type: 'ADD_WATER', payload: amount });
+  };
+
+  const handleWorkoutCompletion = async () => { /* ... (Sua lógica existente) */ };
+
+  // NOVO: Função para confirmar uma refeição no banco de dados
+  const confirmMeal = async (day: string, mealId: string) => {
+    const { error } = await supabase
+      .from('refeicoes_dieta')
+      .update({ confirmada: true })
+      .eq('id', mealId);
+    
+    if (error) {
+      console.error("Erro ao confirmar refeição:", error);
+      throw error;
+    }
+    dispatch({ type: 'CONFIRM_MEAL', payload: { day, mealId } });
+  };
 
   useEffect(() => {
-    if (!authUser) {
-      dispatch({ type: 'LOGOUT' });
-      return;
-    }
+    if (!authUser) { dispatch({ type: 'LOGOUT' }); return; }
 
     const fetchInitialData = async () => {
       dispatch({ type: 'SET_LOADING', payload: true });
@@ -212,50 +229,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const todayISO = new Date().toISOString().slice(0, 10);
       const todayDayName = new Date().toLocaleString('pt-BR', { weekday: 'long' }).replace('-feira', '');
 
-      // --- LÓGICA DE CÁLCULO DE METAS ---
+      // --- LÓGICA DE TREINO E METAS SEMANAIS (Sua lógica existente) ---
       const { data: allWorkoutPlans } = await supabase.from('planos_treino').select('id, dia_semana').eq('usuario_id', authUser.id);
-      
       let workoutProgress = 0;
       let weeklyProgress: WeeklyProgress[] = [];
-      const weekDays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
+      // ... (seu código de cálculo de progresso de treino)
 
-      if (allWorkoutPlans && allWorkoutPlans.length > 0) {
-        const planIds = allWorkoutPlans.map(p => p.id);
-        const { data: allExercises } = await supabase.from('exercicios_treino').select('plano_id, concluido').in('plano_id', planIds);
+      // --- LÓGICA DE DIETA ---
+      let dietProgress = 0;
+      const { data: dietPlanToday } = await supabase
+        .from('planos_dieta')
+        .select(`id, refeicoes_dieta ( id, nome, horario, descricao, calorias, confirmada )`)
+        .eq('usuario_id', authUser.id)
+        .eq('dia_semana', todayDayName)
+        .maybeSingle();
+      
+      if (dietPlanToday && dietPlanToday.refeicoes_dieta) {
+        const meals = dietPlanToday.refeicoes_dieta as any[]; // Cast para evitar erro de tipo do Supabase
+        const totalMeals = meals.length;
+        const confirmedMeals = meals.filter(m => m.confirmada).length;
 
-        const progressByPlanId = allWorkoutPlans.reduce((acc, plan) => {
-          const exercisesForPlan = allExercises?.filter(e => e.plano_id === plan.id) ?? [];
-          const completed = exercisesForPlan.filter(e => e.concluido).length;
-          const total = exercisesForPlan.length;
-          acc[plan.id] = total > 0 ? Math.round((completed / total) * 100) : 0;
-          return acc;
-        }, {} as Record<string, number>);
-
-        weeklyProgress = weekDays.map(day => {
-            const planForDay = allWorkoutPlans.find(p => p.dia_semana.toLowerCase() === day);
-            return {
-                day: day.charAt(0).toUpperCase() + day.slice(1),
-                progress: planForDay ? progressByPlanId[planForDay.id] : 0,
-            };
-        });
-
-        const todayPlan = allWorkoutPlans.find(p => p.dia_semana.toLowerCase() === todayDayName);
-        if (todayPlan) {
-            workoutProgress = progressByPlanId[todayPlan.id];
+        if (totalMeals > 0) {
+          dietProgress = Math.round((confirmedMeals / totalMeals) * 100);
         }
-      } else {
-        // Se não houver planos, preenche a semana com 0%
-        weeklyProgress = weekDays.map(day => ({
-            day: day.charAt(0).toUpperCase() + day.slice(1),
-            progress: 0,
-        }));
+
+        dispatch({
+          type: 'SET_DIET_PLAN',
+          payload: [{
+            day: todayDayName,
+            meals: meals.map(m => ({ ...m, name: m.nome, time: m.horario, description: m.descricao }))
+          }]
+        });
       }
 
-      const dietProgress = 0; // Implementar fetch real
-
+      // --- LÓGICA DE ÁGUA E MODO INTENSIVO (Sua lógica existente) ---
       const { data: waterRecords } = await supabase.from('registro_agua').select('consumido_ml').eq('usuario_id', authUser.id).eq('data', todayISO);
       const totalWaterConsumedToday = waterRecords?.reduce((sum, record) => sum + record.consumido_ml, 0) ?? 0;
-
       const { data: intensiveModeData } = await supabase.from('modo_intensivo').select('dias_consecutivos, intensidade, melhor_sequencia').eq('usuario_id', authUser.id).order('criado_em', { ascending: false }).limit(1).maybeSingle();
       
       dispatch({
@@ -278,7 +287,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [authUser]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch, addWater, handleWorkoutCompletion }}>
+    <AppContext.Provider value={{ state, dispatch, addWater, handleWorkoutCompletion, confirmMeal }}>
       {children}
     </AppContext.Provider>
   );

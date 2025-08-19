@@ -3,9 +3,9 @@ import { Menu } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Sidebar } from '../components/Sidebar';
 
-// Importação de todas as abas, incluindo a GenerateTab
+// 1. Importando TODAS as abas necessárias
 import { DashboardTab } from '../components/tabs/DashboardTab';
-import { GenerateTab } from '../components/tabs/GenerateTab'; // 1. Importar a GenerateTab
+import { GenerateTab } from '../components/tabs/GenerateTab';
 import { WorkoutTab } from '../components/tabs/WorkoutTab';
 import { DietTab } from '../components/tabs/DietTab';
 import { GoalsTab } from '../components/tabs/GoalsTab';
@@ -16,10 +16,10 @@ import { FriendsTab } from '../components/tabs/FriendsTab';
 import WelcomeWizard from './WelcomeWizard';
 import { Button } from '../components/Button';
 
-// Mapa que associa o ID da aba ao seu respectivo componente
+// 2. Mapeando TODAS as abas aos seus componentes
 const tabComponents: { [key: string]: React.FC<any> } = {
   dashboard: DashboardTab,
-  generate: GenerateTab, // 2. Adicionar a GenerateTab ao mapa
+  generate: GenerateTab,
   workout: WorkoutTab,
   diet: DietTab,
   goals: GoalsTab,
@@ -39,7 +39,7 @@ export const DashboardPage: React.FC = () => {
     setSidebarOpen(false);
   };
 
-  // Seleciona o componente correto com base na aba ativa
+  // Lógica para selecionar o componente correto (agora completa)
   const ActiveTabComponent = tabComponents[activeTab] || DashboardTab;
 
   if (state.loading) {
@@ -95,7 +95,6 @@ export const DashboardPage: React.FC = () => {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {/* 3. Lógica de renderização simplificada e corrigida */}
           {activeTab === 'dashboard' ? (
             <DashboardTab onNavigate={handleNavigateToTab} />
           ) : (

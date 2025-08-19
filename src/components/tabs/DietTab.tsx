@@ -9,13 +9,16 @@ import { useTranslation } from '../../data/translations';
 
 export const DietTab: React.FC = () => {
   const { state, dispatch } = useApp();
-  const t = useTranslation(state.user?.preferences.language);
+  
+  const t = useTranslation(state.user?.preferences?.language);
 
   useEffect(() => {
-    if (state.dietPlan.length === 0) {
+    // CORREÇÃO: Verifica se 'dietPlan' não existe OU se está vazio.
+    if (!state.dietPlan || state.dietPlan.length === 0) {
       dispatch({ type: 'SET_DIET_PLAN', payload: mockDiets });
     }
-  }, [state.dietPlan.length, dispatch]);
+    // Depende do array em si, não do seu tamanho, para maior segurança.
+  }, [state.dietPlan, dispatch]);
 
   const handleConfirmMeal = (day: string, mealId: string) => {
     dispatch({
@@ -24,7 +27,8 @@ export const DietTab: React.FC = () => {
     });
   };
 
-  const todayDiet = state.dietPlan.find(d => d.day === 'monday'); // Mock today as Monday
+  // Garante que 'todayDiet' não quebre se 'dietPlan' for undefined.
+  const todayDiet = state.dietPlan?.find(d => d.day === 'monday'); // Mock today as Monday
 
   return (
     <div className="space-y-6">

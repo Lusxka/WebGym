@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dumbbell, Target, Video, Check, RefreshCw, Award, BarChart2, Zap, ChevronDown } from 'lucide-react';
+import { Dumbbell, Target, Video, Check, RefreshCw, Award, BarChart2, Zap, ChevronDown, Lock } from 'lucide-react';
 
 // Imports reais dos seus componentes e contexto
 import { useApp } from '../../context/AppContext';
@@ -37,6 +37,17 @@ const useTranslation = () => (key: string) => ({
     sets: 'séries', reps: 'reps', completed: 'Concluído', markAsCompleted: 'Marcar como Concluído'
 }[key] || key);
 
+// NOVO: Função para obter o nome do dia atual em formato normalizado
+const getNormalizedDayName = (date?: Date): string => {
+    const target = date || new Date();
+    const dayName = target.toLocaleDateString('pt-BR', { weekday: 'long' }).replace('-feira', '');
+    switch (dayName.toLowerCase()) {
+        case 'terça': return 'terca';
+        case 'sábado': return 'sabado';
+        default: return dayName.toLowerCase();
+    }
+};
+
 export const WorkoutTab = () => {
     const { state, markExerciseAsCompleted, resetWeekProgress } = useApp();
     
@@ -50,8 +61,10 @@ export const WorkoutTab = () => {
     const workoutPlan = state.workoutPlan as WorkoutDay[] | null;
     const isLoading = state.loading;
 
+    // NOVO: Obtém o dia atual para controle
+    const currentDayName = getNormalizedDayName();
+
     // NOVO: Sincroniza o estado local do modal com o estado global
-    // Isso garante que o modal sempre mostre a versão mais atualizada dos dados
     useEffect(() => {
         if (workoutPlan && selectedDay) {
             const updatedDay = workoutPlan.find(d => d.id === selectedDay.id);
@@ -61,11 +74,11 @@ export const WorkoutTab = () => {
         }
     }, [workoutPlan, selectedDay?.id]);
 
-    const handleDayClick = (dayId: string) => {
-        if (!workoutPlan) return;
-        const dayWorkout = workoutPlan.find(d => d.dia_semana === dayId);
-        if (dayWorkout && dayWorkout.exercicios_treino && dayWorkout.exercicios_treino.length > 0) {
-            setSelectedDay(dayWorkout);
+    const handleDayClick = (day: WorkoutDay) => {
+        // CORREÇÃO: Removido o bloqueio para permitir a visualização de treinos passados/futuros.
+        // O usuário pode clicar em qualquer dia de treino com exercícios.
+        if (day.exercicios_treino && day.exercicios_treino.length > 0) {
+            setSelectedDay(day);
             setIsModalOpen(true);
             setOpenVideoId(null);
         }
@@ -73,13 +86,18 @@ export const WorkoutTab = () => {
 
     const handleCompleteExercise = async (exerciseId: string) => {
         if (!selectedDay) return;
-        
+
+        // NOVO: Impede a conclusão de exercícios de outros dias
+        if (selectedDay.dia_semana !== currentDayName) {
+            alert('Você só pode concluir exercícios do dia atual.');
+            return;
+        }
+
         try {
             setIsCompletingExercise(exerciseId);
             console.log('Marcando exercício como concluído:', exerciseId);
             
-            // Removido: Lógica de atualização manual do estado local
-            // Agora, apenas a função do contexto é chamada para atualizar o estado global
+            // Usar a função do contexto que já atualiza tudo
             await markExerciseAsCompleted(exerciseId);
             
             console.log('Exercício marcado como concluído com sucesso');
@@ -164,19 +182,22 @@ export const WorkoutTab = () => {
                     {workoutPlan.map((day) => {
                         const hasWorkout = day.exercicios_treino && day.exercicios_treino.length > 0;
                         const DayIcon = iconMap[day.dia_semana] || Dumbbell;
+                        const isCurrentDay = hasWorkout && day.dia_semana === currentDayName;
+                        // CORREÇÃO: Permite clicar em qualquer dia que tenha um treino, não apenas o atual ou concluído
+                        const isClickable = hasWorkout;
 
                         return (
                             <motion.div
                                 key={day.id}
-                                whileHover={hasWorkout ? { y: -5, scale: 1.02 } : {}}
+                                whileHover={isClickable ? { y: -5, scale: 1.02 } : {}}
                                 className={`p-6 rounded-2xl border transition-all duration-300 relative ${
-                                    hasWorkout ? 'cursor-pointer' : 'opacity-60'
+                                    isClickable ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'
                                 } ${
                                     day.concluido 
                                         ? 'bg-green-500/10 border-green-500/30' 
                                         : 'bg-white dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 hover:border-blue-500'
                                 }`}
-                                onClick={() => hasWorkout && handleDayClick(day.dia_semana)}
+                                onClick={() => isClickable && handleDayClick(day)}
                             >
                                 <div className="flex justify-between items-start mb-4">
                                     <div>
@@ -189,6 +210,9 @@ export const WorkoutTab = () => {
                                         </div>
                                     )}
                                     {day.concluido && <Check className="absolute top-4 right-4 text-green-600 dark:text-green-400" size={20} />}
+                                    {!isCurrentDay && hasWorkout && !day.concluido && (
+                                        <Lock className="absolute top-4 right-4 text-gray-500 dark:text-gray-400" size={20} />
+                                    )}
                                 </div>
                                 {hasWorkout && (
                                     <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-500 mt-6">
@@ -265,7 +289,7 @@ export const WorkoutTab = () => {
                                     </div>
                                     <Button
                                         onClick={() => handleCompleteExercise(exercise.id)}
-                                        disabled={exercise.concluido || isCompletingExercise === exercise.id}
+                                        disabled={exercise.concluido || isCompletingExercise === exercise.id || selectedDay.dia_semana !== currentDayName}
                                         icon={exercise.concluido ? Check : undefined}
                                         className={`ml-4 ${exercise.concluido 
                                             ? 'bg-green-500/20 text-green-600 dark:text-green-400 cursor-default' 

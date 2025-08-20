@@ -2,7 +2,7 @@ import React, { createContext, useReducer, useContext, ReactNode, useEffect } fr
 import { useAuth } from './AuthContext';
 import { supabase } from '../supabase';
 
-// --- TIPAGENS (mantive as suas) ---
+// --- TIPAGENS ---
 export interface UserProfile {
     id: string;
     nome: string;
@@ -17,23 +17,6 @@ export interface UserProfile {
     nivel: 'iniciante' | 'intermediario' | 'avancado' | null;
     criado_em: string;
     avatar_url?: string;
-}
-
-export interface WorkoutPlan {
-    day: string;
-    name: string;
-    icon: string;
-    completed: boolean;
-    exercises: Array<{
-        id: string;
-        name: string;
-        sets: string;
-        reps: string;
-        rest: string;
-        completed: boolean;
-        videoUrl: string | null;
-        observation: string;
-    }>;
 }
 
 export interface DietPlan {
@@ -68,7 +51,7 @@ interface AppState {
     isAuthenticated: boolean;
     showWizard: boolean;
     loading: boolean;
-    workoutPlan: any[] | null; // recebo raw do supabase aqui
+    workoutPlan: any[] | null;
     dietPlan: DietPlan[];
     waterIntake: { consumed: number; goal: number };
     intensiveMode: {
@@ -104,7 +87,7 @@ type Action =
     | { type: 'SET_DAILY_PROGRESS'; payload: { workout: number; diet: number } };
 
 const getSystemTheme = (): boolean => {
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         return true;
     }
     return false;
@@ -152,15 +135,6 @@ const getSaoPauloDateString = (): string => {
 const getSaoPauloISOString = (): string => {
     const date = getSaoPauloDate();
     return date.toISOString();
-};
-
-const debugTime = () => {
-    console.log('=== DEBUG HORÁRIO ===');
-    console.log('Hora local sistema:', new Date().toLocaleString());
-    console.log('Hora UTC:', new Date().toISOString());
-    console.log('Hora SP calculada:', getSaoPauloDate().toLocaleString());
-    console.log('Data SP:', getSaoPauloDateString());
-    console.log('ISO SP:', getSaoPauloISOString());
 };
 
 const getNormalizedDayName = (date?: Date): string => {
@@ -250,14 +224,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [state, dispatch] = useReducer(appReducer, initialState);
     const { user: authUser, session: authSession } = useAuth();
 
-    // ====================================================
-    // FUNÇÕES BANCO (agora retornam os dados formatados)
-    // ====================================================
-
     const loadWorkoutPlansFromDB = async (userId: string) => {
         try {
-            console.log('📋 Carregando planos de treino do banco...');
-            
             const { data: workoutPlans, error } = await supabase
                 .from('planos_treino')
                 .select(`
@@ -283,7 +251,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 .order('ordem', { foreignTable: 'exercicios_treino', ascending: true });
 
             if (error) {
-                console.error('❌ Erro ao carregar planos de treino:', error);
+                console.error('Erro ao carregar planos de treino:', error);
                 dispatch({ type: 'SET_WORKOUT_PLAN', payload: [] });
                 return [];
             }
@@ -298,11 +266,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }));
 
             dispatch({ type: 'SET_WORKOUT_PLAN', payload: formatted });
-            console.log('✅ Planos de treino carregados:', formatted.length, 'planos');
             return formatted;
-            
         } catch (error) {
-            console.error('❌ Erro ao carregar planos de treino:', error);
+            console.error('Erro ao carregar planos de treino:', error);
             dispatch({ type: 'SET_WORKOUT_PLAN', payload: [] });
             return [];
         }
@@ -310,8 +276,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const loadDietPlansFromDB = async (userId: string) => {
         try {
-            console.log('🥗 Carregando planos de dieta do banco...');
-            
             const { data: dietPlansRaw, error } = await supabase
                 .from('planos_dieta')
                 .select(`
@@ -330,7 +294,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 .order('dia_semana');
 
             if (error) {
-                console.error('❌ Erro ao carregar planos de dieta:', error);
+                console.error('Erro ao carregar planos de dieta:', error);
                 dispatch({ type: 'SET_DIET_PLAN', payload: [] });
                 return [];
             }
@@ -348,28 +312,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }));
 
             dispatch({ type: 'SET_DIET_PLAN', payload: formattedDietPlan });
-            console.log('✅ Planos de dieta carregados:', formattedDietPlan.length, 'planos');
             return formattedDietPlan;
-            
         } catch (error) {
-            console.error('❌ Erro ao carregar planos de dieta:', error);
+            console.error('Erro ao carregar planos de dieta:', error);
             dispatch({ type: 'SET_DIET_PLAN', payload: [] });
             return [];
+        }
+    };
+
+    const computeAndDispatchDailyProgress = (workoutPlans: any[] = [], dietPlans: DietPlan[] = []) => {
+        try {
+            const todayDayName = getNormalizedDayName();
+
+            // workout
+            let workoutPercent = 0;
+            const todayWorkout = (workoutPlans || []).find(p => (p.dia_semana || '').toString().toLowerCase() === todayDayName);
+            if (todayWorkout) {
+                const exercises = todayWorkout.exercicios_treino || [];
+                const total = exercises.length;
+                const completed = exercises.filter((e: any) => !!e.concluido).length;
+                workoutPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+            }
+
+            // diet
+            let dietPercent = 0;
+            const todayDiet = (dietPlans || []).find(d => (d.day || '').toLowerCase() === todayDayName);
+            if (todayDiet) {
+                const meals = todayDiet.meals || [];
+                const totalMeals = meals.length;
+                const confirmedMeals = meals.filter(m => !!m.confirmed).length;
+                dietPercent = totalMeals > 0 ? Math.round((confirmedMeals / totalMeals) * 100) : 0;
+            }
+
+            // atualiza o estado reativamente
+            dispatch({ type: 'SET_DAILY_PROGRESS', payload: { workout: workoutPercent, diet: dietPercent } });
+
+            // também retorna para uso imediato (evita usar state antigo)
+            return { workoutPercent, dietPercent };
+        } catch (err) {
+            console.error('Erro ao computar progresso diário:', err);
+            return { workoutPercent: 0, dietPercent: 0 };
         }
     };
 
     const markExerciseAsCompleted = async (exerciseId: string) => {
         try {
             if (!authUser) return;
-            console.log('✅ Marcando exercício como concluído:', exerciseId);
-            
             const { error } = await supabase
                 .from('exercicios_treino')
                 .update({ concluido: true })
                 .eq('id', exerciseId);
 
             if (error) {
-                console.error('❌ Erro ao marcar exercício como concluído:', error);
+                console.error('Erro ao marcar exercício como concluído:', error);
                 throw error;
             }
 
@@ -380,10 +375,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             ]);
 
             computeAndDispatchDailyProgress(workoutPlans, dietPlans);
-
-            console.log('✅ Exercício marcado e progresso atualizado');
         } catch (error) {
-            console.error('❌ Erro ao marcar exercício como concluído:', error);
+            console.error(error);
             throw error;
         }
     };
@@ -391,64 +384,45 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const confirmMealFromDB = async (mealId: string, dayName: string) => {
         try {
             if (!authUser) return;
-            console.log('🍽️ Confirmando refeição:', mealId);
-            
             const { error } = await supabase
                 .from('refeicoes_dieta')
                 .update({ confirmada: true })
                 .eq('id', mealId);
 
             if (error) {
-                console.error('❌ Erro ao confirmar refeição:', error);
+                console.error('Erro ao confirmar refeição:', error);
                 throw error;
             }
 
-            // Recarregar planos e recalcular progresso
+            // Recarregar e recalcular
             const [workoutPlans, dietPlans] = await Promise.all([
                 loadWorkoutPlansFromDB(authUser.id),
                 loadDietPlansFromDB(authUser.id)
             ]);
 
             computeAndDispatchDailyProgress(workoutPlans, dietPlans);
-
-            console.log('✅ Refeição confirmada e progresso atualizado');
         } catch (error) {
-            console.error('❌ Erro ao confirmar refeição:', error);
+            console.error(error);
             throw error;
         }
     };
 
     const checkIfUserHasPlans = async (userId: string): Promise<boolean> => {
         try {
-            console.log('🔍 Verificando se usuário tem planos...');
-            
             const [workoutCheck, dietCheck] = await Promise.all([
                 supabase.from('planos_treino').select('id').eq('usuario_id', userId).limit(1),
                 supabase.from('planos_dieta').select('id').eq('usuario_id', userId).limit(1)
             ]);
-
-            const hasWorkoutPlans = workoutCheck.data && workoutCheck.data.length > 0;
-            const hasDietPlans = dietCheck.data && dietCheck.data.length > 0;
-            
-            console.log('📊 Planos existentes:', { treino: hasWorkoutPlans, dieta: hasDietPlans });
-            return hasWorkoutPlans || hasDietPlans;
-            
-        } catch (error) {
-            console.error('❌ Erro ao verificar planos existentes:', error);
+            return (workoutCheck.data?.length ?? 0) > 0 || (dietCheck.data?.length ?? 0) > 0;
+        } catch {
             return false;
         }
     };
-
-    // ====================================================
-    // FUNÇÕES ORIGINAIS (mantidas)
-    // ====================================================
 
     const addWater = async (amount: number) => {
         if (!state.user) throw new Error("Usuário não autenticado.");
         const today = getSaoPauloDateString();
         const createdAt = getSaoPauloISOString();
-        debugTime();
-        console.log('Salvando água com data:', today, 'criado_em:', createdAt);
         const { error } = await supabase.from('registro_agua').insert({
             usuario_id: state.user.id,
             consumido_ml: amount,
@@ -471,50 +445,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             .order('criado_em', { ascending: false })
             .limit(1)
             .single();
-        const today = getSaoPauloDate();
-        today.setHours(0, 0, 0, 0);
+
+        const today = getSaoPauloDate(); today.setHours(0, 0, 0, 0);
         let newConsecutiveDays = 1;
         let newBestStreak = lastRecord?.melhor_sequencia ?? 1;
         if (lastRecord) {
-            const lastRecordUTC = new Date(lastRecord.criado_em);
-            const lastRecordSP = new Date(lastRecordUTC.getTime() - (3 * 3600000));
+            const lastRecordSP = new Date(new Date(lastRecord.criado_em).getTime() - (3 * 3600000));
             lastRecordSP.setHours(0, 0, 0, 0);
-            const yesterday = new Date(today);
-            yesterday.setDate(today.getDate() - 1);
-            console.log('DEBUG - Comparação de datas:');
-            console.log('Hoje SP:', today);
-            console.log('Último registro SP:', lastRecordSP);
-            console.log('Ontem SP:', yesterday);
-            if (lastRecordSP.getTime() === today.getTime()) {
-                console.log('Já registrou hoje');
-                return;
-            }
-            if (lastRecordSP.getTime() === yesterday.getTime()) {
-                console.log('Registrou ontem, incrementando sequência');
-                newConsecutiveDays = lastRecord.dias_consecutivos + 1;
-            } else {
-                console.log('Quebrou a sequência');
-            }
+            const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+            if (lastRecordSP.getTime() === today.getTime()) return;
+            if (lastRecordSP.getTime() === yesterday.getTime()) newConsecutiveDays = lastRecord.dias_consecutivos + 1;
         }
-        if (newConsecutiveDays > newBestStreak) {
-            newBestStreak = newConsecutiveDays;
-        }
-        const { data: newRecord, error } = await supabase
-            .from('modo_intensivo')
+        if (newConsecutiveDays > newBestStreak) newBestStreak = newConsecutiveDays;
+
+        const { data: newRecord, error } = await supabase.from('modo_intensivo')
             .insert({
                 usuario_id: state.user.id,
                 dias_consecutivos: newConsecutiveDays,
                 melhor_sequencia: newBestStreak,
                 intensidade: Math.min(100, newConsecutiveDays * 5),
                 criado_em: getSaoPauloISOString()
-            })
-            .select()
-            .single();
-        if (error) {
-            console.error("Erro ao atualizar modo intensivo:", error);
-            throw error;
-        }
+            }).select().single();
+
+        if (error) throw error;
+
         if (newRecord) {
+            // Recalcular dashboard com valores atuais de dailyProgress
             dispatch({
                 type: 'SET_DASHBOARD_DATA',
                 payload: {
@@ -524,7 +480,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     consecutiveDays: newRecord.dias_consecutivos,
                     intensity: newRecord.intensidade,
                     bestStreak: newRecord.melhor_sequencia,
-                    weeklyProgress: state.weeklyProgress
+                    weeklyProgress: state.weeklyProgress,
                 }
             });
         }
@@ -535,132 +491,64 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     const updateUserProfile = async (profileData: Partial<UserProfile>) => {
-        if (!state.user) {
-            throw new Error("Usuário não autenticado.");
-        }
-        const { data, error } = await supabase
-            .from('usuarios')
-            .update(profileData)
-            .eq('id', state.user.id)
-            .select()
-            .single();
-        if (error) {
-            console.log("Erro ao atualizar perfil:", error);
-            throw error;
-        }
-        if (data) {
-            dispatch({ type: 'UPDATE_USER_PROFILE', payload: data });
-        }
-    };
-
-    // ====================================================
-    // HELPERS: recalcula progresso do dia e despacha
-    // ====================================================
-
-    const computeAndDispatchDailyProgress = (workoutPlans: any[] = [], dietPlans: DietPlan[] = []) => {
-        try {
-            const todayDayName = getNormalizedDayName();
-
-            // workoutProgress: buscar o plano do dia nas workoutPlans (raw do supabase)
-            let workoutPercent = 0;
-            const todayWorkout = (workoutPlans || []).find(p => (p.dia_semana || '').toString().toLowerCase() === todayDayName);
-            if (todayWorkout) {
-                const exercises = todayWorkout.exercicios_treino || [];
-                const total = exercises.length;
-                const completed = exercises.filter((e: any) => !!e.concluido).length;
-                workoutPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
-            }
-
-            // dietProgress: buscar dietPlan formatado
-            let dietPercent = 0;
-            const todayDiet = (dietPlans || []).find(d => (d.day || '').toLowerCase() === todayDayName);
-            if (todayDiet) {
-                const meals = todayDiet.meals || [];
-                const totalMeals = meals.length;
-                const confirmedMeals = meals.filter(m => !!m.confirmed).length;
-                dietPercent = totalMeals > 0 ? Math.round((confirmedMeals / totalMeals) * 100) : 0;
-            }
-
-            dispatch({ type: 'SET_DAILY_PROGRESS', payload: { workout: workoutPercent, diet: dietPercent } });
-            console.log('✅ Daily progress atualizado: ', { workoutPercent, dietPercent });
-        } catch (err) {
-            console.error('Erro ao computar progresso diário:', err);
-        }
+        if (!state.user) throw new Error("Usuário não autenticado.");
+        const { data, error } = await supabase.from('usuarios').update(profileData).eq('id', state.user.id).select().single();
+        if (error) throw error;
+        if (data) dispatch({ type: 'UPDATE_USER_PROFILE', payload: data });
     };
 
     useEffect(() => {
-        const currentSession = authSession;
-        const currentUser = authUser;
-
-        if (!currentUser) {
-            dispatch({ type: 'LOGOUT' });
-            return;
-        }
-
+        if (!authUser) { dispatch({ type: 'LOGOUT' }); return; }
         const fetchInitialData = async () => {
             dispatch({ type: 'SET_LOADING', payload: true });
-            
-            const { data: userProfile } = await supabase
-                .from('usuarios')
-                .select('*')
-                .eq('id', currentUser.id)
-                .single();
 
-            if (!userProfile) {
-                dispatch({ type: 'LOGOUT' });
-                return;
-            }
+            const { data: userProfile } = await supabase.from('usuarios').select('*').eq('id', authUser.id).single();
+            if (!userProfile) { dispatch({ type: 'LOGOUT' }); return; }
+            dispatch({ type: 'LOGIN_SUCCESS', payload: { userProfile, session: authSession } });
 
-            dispatch({ type: 'LOGIN_SUCCESS', payload: { userProfile, session: currentSession } });
-
-            // preferencia dark mode
             let isDarkMode = getSystemTheme();
             try {
                 if (userProfile.preferencias) {
                     const prefs = JSON.parse(userProfile.preferencias);
-                    if (prefs && typeof prefs.darkMode === 'boolean') {
-                        isDarkMode = prefs.darkMode;
-                    }
+                    if (prefs && typeof prefs.darkMode === 'boolean') isDarkMode = prefs.darkMode;
                 }
-            } catch (e) {
-                console.error("Falha ao parsear preferências do usuário", e);
-            }
+            } catch (e) { console.error(e); }
             dispatch({ type: 'SET_DARK_MODE', payload: isDarkMode });
 
-            // Carregar planos (essas funções retornam os dados formatados)
+            // Carregar planos
             const [workoutPlans, dietPlans] = await Promise.all([
-                loadWorkoutPlansFromDB(currentUser.id),
-                loadDietPlansFromDB(currentUser.id)
+                loadWorkoutPlansFromDB(authUser.id),
+                loadDietPlansFromDB(authUser.id)
             ]);
 
-            // Recalcular daily progress com base nos planos carregados
-            computeAndDispatchDailyProgress(workoutPlans, dietPlans);
+            // CALCULA e DESPACHA daily progress e retorna os valores calculados
+            const { workoutPercent, dietPercent } = computeAndDispatchDailyProgress(workoutPlans, dietPlans) as any;
 
-            // Carregar registro de água de hoje p/ dashboard (mantendo compatibilidade antiga)
+            // registro de água hoje
             const todayISO = getSaoPauloDateString();
             const { data: waterRecords } = await supabase
                 .from('registro_agua')
                 .select('consumido_ml')
-                .eq('usuario_id', currentUser.id)
+                .eq('usuario_id', authUser.id)
                 .eq('data', todayISO);
 
             const totalWaterConsumedToday = waterRecords?.reduce((sum: number, record: any) => sum + (record.consumido_ml || 0), 0) ?? 0;
 
-            // Carregar modo intensivo último registro
+            // modo intensivo
             const { data: intensiveModeData } = await supabase
                 .from('modo_intensivo')
                 .select('dias_consecutivos, intensidade, melhor_sequencia')
-                .eq('usuario_id', currentUser.id)
+                .eq('usuario_id', authUser.id)
                 .order('criado_em', { ascending: false })
                 .limit(1)
                 .maybeSingle();
 
-            // Atualiza dados do dashboard geral (mantendo campos antigos)
+            // Usa os valores calculados (não usa state antigo)
             dispatch({
                 type: 'SET_DASHBOARD_DATA',
                 payload: {
-                    workoutProgress: state.dailyProgress.workout, // será substituído pelo SET_DAILY_PROGRESS dispatchado logo acima
-                    dietProgress: state.dailyProgress.diet,
+                    workoutProgress: workoutPercent ?? 0,
+                    dietProgress: dietPercent ?? 0,
                     waterConsumed: totalWaterConsumedToday,
                     consecutiveDays: intensiveModeData?.dias_consecutivos ?? 0,
                     intensity: intensiveModeData?.intensidade ?? 0,
@@ -671,9 +559,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
             dispatch({ type: 'SET_LOADING', payload: false });
         };
-        
         fetchInitialData();
-        
     }, [authUser, authSession]);
 
     return (

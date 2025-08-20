@@ -1,5 +1,3 @@
-// src/components/tabs/GenerateTab.jsx
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Wand2, User, Target, Calendar, CheckCircle, Sparkles } from 'lucide-react';
@@ -138,7 +136,7 @@ export const GenerateTab = () => {
 
                     <button
                         onClick={handleOpenWizard}
-                        disabled={state.isGeneratingPlan}
+                        disabled={state.isGeneratingPlan} // O estado do AppContext agora controla o botão
                         className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-300 hover:scale-105 shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
                         {state.isGeneratingPlan ? (

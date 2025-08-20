@@ -2,12 +2,12 @@ import React, { createContext, useReducer, useContext, ReactNode, useEffect } fr
 import { useAuth } from './AuthContext';
 import { supabase } from '../supabase';
 
-// Tipagens (mantive as suas principais)
+
 export interface UserProfile {
   id: string;
   nome: string;
   preferencias: string | null;
-  // ...outros campos omitidos para brevidade (mantenha os seus)
+  
 }
 
 export interface DietPlan {
@@ -340,13 +340,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       
       console.log('Marcando exercício como concluído:', exerciseId);
       
-      const { error } = await supabase
+      // 1. Marcar o exercício individual como concluído
+      const { data: exerciseData, error: exerciseError } = await supabase
         .from('exercicios_treino')
         .update({ concluido: true })
-        .eq('id', exerciseId);
+        .eq('id', exerciseId)
+        .select('plano_id');
         
-      if (error) throw error;
+      if (exerciseError) throw exerciseError;
 
+      // 2. Verificar se o plano de treino do dia está completo
+      const planoId = exerciseData?.[0]?.plano_id;
+      if (planoId) {
+        const { data: exercisesInPlan, error: fetchError } = await supabase
+          .from('exercicios_treino')
+          .select('concluido')
+          .eq('plano_id', planoId);
+
+        if (fetchError) throw fetchError;
+
+        const allExercisesCompleted = exercisesInPlan?.every((e: any) => e.concluido);
+        
+        // 3. Se todos os exercícios estiverem concluídos, atualizar o plano principal
+        if (allExercisesCompleted) {
+          console.log(`Todos os exercícios do plano ${planoId} estão concluídos. Atualizando o plano.`);
+          const { error: planError } = await supabase
+            .from('planos_treino')
+            .update({ concluido: true })
+            .eq('id', planoId);
+            
+          if (planError) throw planError;
+        }
+      }
+      
       console.log('Exercício marcado como concluído, recarregando dados...');
       
       // Recarregar dados e recalcular progresso

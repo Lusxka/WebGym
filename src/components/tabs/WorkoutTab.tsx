@@ -50,6 +50,17 @@ export const WorkoutTab = () => {
     const workoutPlan = state.workoutPlan as WorkoutDay[] | null;
     const isLoading = state.loading;
 
+    // NOVO: Sincroniza o estado local do modal com o estado global
+    // Isso garante que o modal sempre mostre a versão mais atualizada dos dados
+    useEffect(() => {
+        if (workoutPlan && selectedDay) {
+            const updatedDay = workoutPlan.find(d => d.id === selectedDay.id);
+            if (updatedDay) {
+                setSelectedDay(updatedDay);
+            }
+        }
+    }, [workoutPlan, selectedDay?.id]);
+
     const handleDayClick = (dayId: string) => {
         if (!workoutPlan) return;
         const dayWorkout = workoutPlan.find(d => d.dia_semana === dayId);
@@ -67,25 +78,9 @@ export const WorkoutTab = () => {
             setIsCompletingExercise(exerciseId);
             console.log('Marcando exercício como concluído:', exerciseId);
             
-            // Usar a função do contexto que já atualiza tudo
+            // Removido: Lógica de atualização manual do estado local
+            // Agora, apenas a função do contexto é chamada para atualizar o estado global
             await markExerciseAsCompleted(exerciseId);
-            
-            // Atualizar o estado local do modal
-            setSelectedDay((prev: any) => {
-                if (!prev) return prev;
-                
-                const newExercises = prev.exercicios_treino.map((ex: any) => 
-                    ex.id === exerciseId ? { ...ex, concluido: true } : ex
-                );
-                
-                const allDayCompleted = newExercises.every((ex: any) => ex.concluido);
-                
-                return { 
-                    ...prev, 
-                    exercicios_treino: newExercises, 
-                    concluido: allDayCompleted 
-                };
-            });
             
             console.log('Exercício marcado como concluído com sucesso');
             

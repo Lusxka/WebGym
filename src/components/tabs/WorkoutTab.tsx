@@ -8,7 +8,6 @@ import { Card } from '../Card';
 import { Button } from '../Button';
 import { Modal } from '../Modal';
 import { VideoPlayer } from '../VideoPlayer';
-import { supabase } from "../../supabase"; // Importando o cliente Supabase
 
 // Tipos de dados (ajuste se necessário)
 interface Exercise {
@@ -39,69 +38,17 @@ const useTranslation = () => (key: string) => ({
 }[key] || key);
 
 export const WorkoutTab = () => {
-    const { state, dispatch } = useApp();
-    const { session } = state; // Acessa a sessão para pegar o user_id
+    const { state, markExerciseAsCompleted, resetWeekProgress } = useApp();
     
-    // Novo estado para os planos de treino e o estado de carregamento
-    const [workoutPlan, setWorkoutPlan] = useState<WorkoutDay[] | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
     const [selectedDay, setSelectedDay] = useState<WorkoutDay | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [openVideoId, setOpenVideoId] = useState<string | null>(null);
+    const [isCompletingExercise, setIsCompletingExercise] = useState<string | null>(null);
     const t = useTranslation();
 
-    // Novo useEffect para buscar os dados do Supabase
-    useEffect(() => {
-        const fetchWorkoutPlan = async () => {
-            if (!session?.user?.id) {
-                setIsLoading(false);
-                setWorkoutPlan(null);
-                return;
-            }
-
-            setIsLoading(true);
-            setError(null);
-
-            // Fetching de planos de treino e exercícios relacionados
-            // A consulta usa o PostgREST para fazer um JOIN implícito
-            const { data, error } = await supabase
-                .from('planos_treino')
-                .select(`
-                    id,
-                    nome,
-                    dia_semana,
-                    objetivo,
-                    concluido,
-                    exercicios_treino (
-                        id,
-                        nome,
-                        ordem,
-                        series,
-                        repeticoes,
-                        video_url,
-                        descanso,
-                        observacao,
-                        concluido
-                    )
-                `)
-                .eq('usuario_id', session.user.id)
-                .order('dia_semana', { ascending: true }); // A ordem dos planos deve vir primeiro
-
-            if (error) {
-                console.error("Erro ao carregar planos de treino:", error);
-                setError("Falha ao carregar o plano de treino. Tente novamente.");
-                setWorkoutPlan(null);
-            } else {
-                console.log("Dados recebidos do Supabase:", data); // Log para inspecionar a resposta
-                setWorkoutPlan(data as WorkoutDay[]);
-            }
-            setIsLoading(false);
-        };
-
-        fetchWorkoutPlan();
-    }, [session?.user?.id]); // Dependência do ID do usuário
+    // Usar os dados do contexto diretamente
+    const workoutPlan = state.workoutPlan as WorkoutDay[] | null;
+    const isLoading = state.loading;
 
     const handleDayClick = (dayId: string) => {
         if (!workoutPlan) return;
@@ -115,58 +62,57 @@ export const WorkoutTab = () => {
 
     const handleCompleteExercise = async (exerciseId: string) => {
         if (!selectedDay) return;
-
-        // Lógica para atualizar no banco de dados
-        const { error } = await supabase
-            .from('exercicios_treino')
-            .update({ concluido: true })
-            .eq('id', exerciseId);
-
-        if (error) {
-            console.error("Erro ao marcar exercício como concluído:", error);
-            // Mostrar um aviso para o usuário se a atualização falhar
-        } else {
-            // Atualizar o estado local após o sucesso da atualização no BD
+        
+        try {
+            setIsCompletingExercise(exerciseId);
+            console.log('Marcando exercício como concluído:', exerciseId);
+            
+            // Usar a função do contexto que já atualiza tudo
+            await markExerciseAsCompleted(exerciseId);
+            
+            // Atualizar o estado local do modal
             setSelectedDay((prev: any) => {
+                if (!prev) return prev;
+                
                 const newExercises = prev.exercicios_treino.map((ex: any) => 
                     ex.id === exerciseId ? { ...ex, concluido: true } : ex
                 );
-                // Lógica para marcar o dia inteiro como concluído
+                
                 const allDayCompleted = newExercises.every((ex: any) => ex.concluido);
-                if (allDayCompleted) {
-                    supabase.from('planos_treino').update({ concluido: true }).eq('id', selectedDay.id).then(() => {
-                        // Opcional: recarregar os dados para atualizar o estado global
-                    });
-                }
-                return { ...prev, exercicios_treino: newExercises, concluido: allDayCompleted };
+                
+                return { 
+                    ...prev, 
+                    exercicios_treino: newExercises, 
+                    concluido: allDayCompleted 
+                };
             });
+            
+            console.log('Exercício marcado como concluído com sucesso');
+            
+        } catch (error) {
+            console.error("Erro ao marcar exercício como concluído:", error);
+            alert("Erro ao marcar exercício como concluído. Tente novamente.");
+        } finally {
+            setIsCompletingExercise(null);
         }
     };
     
     const handleResetWeek = async () => {
         if (window.confirm('Tem certeza que deseja resetar o progresso da semana?')) {
-            // Lógica para resetar o estado global
-            // Encontrar todos os exercícios e planos do usuário e resetar
-            const { error } = await supabase
-                .from('exercicios_treino')
-                .update({ concluido: false })
-                .in('plano_id', workoutPlan?.map(p => p.id) || []);
-
-            if (error) {
-                console.error("Erro ao resetar exercícios:", error);
-            } else {
-                const { error: resetPlanError } = await supabase
-                    .from('planos_treino')
-                    .update({ concluido: false })
-                    .eq('usuario_id', session?.user?.id);
+            try {
+                console.log('Iniciando reset da semana...');
+                await resetWeekProgress();
+                console.log('Reset concluído com sucesso');
                 
-                if (resetPlanError) {
-                    console.error("Erro ao resetar planos:", resetPlanError);
-                } else {
-                    // Recarregar os dados após o reset
-                    // Uma abordagem melhor seria atualizar o estado local, mas para testar o reload é mais simples
-                    window.location.reload();
+                // Fechar modal se estiver aberto
+                if (isModalOpen) {
+                    setIsModalOpen(false);
+                    setSelectedDay(null);
                 }
+                
+            } catch (error) {
+                console.error("Erro ao resetar semana:", error);
+                alert("Erro ao resetar o progresso. Tente novamente.");
             }
         }
     };
@@ -181,16 +127,6 @@ export const WorkoutTab = () => {
             <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
                 <Dumbbell size={48} className="animate-pulse text-blue-500 dark:text-blue-400 mb-4" />
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Carregando Seu Treino...</h2>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
-                <Zap size={48} className="text-red-500 dark:text-red-400 mb-4" />
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Ops, algo deu errado!</h2>
-                <p className="text-gray-600 dark:text-gray-400 max-w-md">{error}</p>
             </div>
         );
     }
@@ -271,7 +207,7 @@ export const WorkoutTab = () => {
                 </section>
             </main>
 
-            {/* Modal e Footer (sem alterações) */}
+            {/* Footer */}
             <footer className="mt-20 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50">
                 <div className="container mx-auto px-4 py-12">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
@@ -307,6 +243,7 @@ export const WorkoutTab = () => {
                 </div>
             </footer>
 
+            {/* Modal */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
@@ -315,7 +252,7 @@ export const WorkoutTab = () => {
                 {selectedDay && (
                     <div className="space-y-4">
                         {selectedDay.exercicios_treino.map((exercise: any) => (
-                            <Card key={exercise.id} className={`p-4 transition-all ${exercise.concluido ? 'border-green-500/50' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                            <Card key={exercise.id} className={`p-4 transition-all ${exercise.concluido ? 'border-green-500/50 bg-green-500/5' : 'bg-gray-100 dark:bg-gray-800'}`}>
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1 cursor-pointer" onClick={() => toggleVideo(exercise.id)}>
                                         <div className="flex items-center justify-between">
@@ -325,17 +262,26 @@ export const WorkoutTab = () => {
                                         <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mt-1">
                                             <span>{exercise.series} {t('sets')}</span>
                                             <span>{exercise.repeticoes} {t('reps')}</span>
+                                            {exercise.descanso && <span>Descanso: {exercise.descanso}</span>}
                                         </div>
+                                        {exercise.observacao && (
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{exercise.observacao}</p>
+                                        )}
                                     </div>
                                     <Button
                                         onClick={() => handleCompleteExercise(exercise.id)}
-                                        disabled={exercise.concluido}
+                                        disabled={exercise.concluido || isCompletingExercise === exercise.id}
                                         icon={exercise.concluido ? Check : undefined}
                                         className={`ml-4 ${exercise.concluido 
                                             ? 'bg-green-500/20 text-green-600 dark:text-green-400 cursor-default' 
-                                            : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                                            : 'bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50'}`}
                                     >
-                                        {exercise.concluido ? t('completed') : t('markAsCompleted')}
+                                        {isCompletingExercise === exercise.id 
+                                            ? 'Salvando...' 
+                                            : exercise.concluido 
+                                                ? t('completed') 
+                                                : t('markAsCompleted')
+                                        }
                                     </Button>
                                 </div>
                                 <AnimatePresence>
@@ -356,6 +302,7 @@ export const WorkoutTab = () => {
                 )}
             </Modal>
 
+            {/* Botão de Reset */}
             <button 
                 onClick={handleResetWeek}
                 title="Resetar Semana"

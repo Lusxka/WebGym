@@ -8,6 +8,14 @@ export interface UserProfile {
     nome: string;
     preferencias: string | null;
     // ...outros campos omitidos para brevidade (mantenha os seus)
+    idade?: number | null;
+    peso?: number | null;
+    altura?: number | null;
+    sexo?: 'masculino' | 'feminino' | null;
+    nivel?: 'iniciante' | 'intermediario' | 'avancado' | null;
+    objetivo?: string | null;
+    compartilhar_treinos?: boolean;
+    compartilhar_dietas?: boolean;
 }
 
 export interface DietPlan {
@@ -63,8 +71,9 @@ type Action =
     | { type: 'ADD_WATER'; payload: number }
     | { type: 'SET_DASHBOARD_DATA'; payload: DashboardData }
     | { type: 'SET_DARK_MODE'; payload: boolean }
-    | { type: 'SHOW_WIZARD'; payload: boolean } // NOVO: Ação para o GenerateTab
-    | { type: 'SET_IS_GENERATING_PLAN'; payload: boolean }; // NOVO: Ação para o botão de loading
+    | { type: 'SHOW_WIZARD'; payload: boolean }
+    | { type: 'SET_IS_GENERATING_PLAN'; payload: boolean }
+    | { type: 'UPDATE_USER_PROFILE'; payload: UserProfile }; // NOVO: Ação para atualizar o perfil
 
 const initialState: AppState = {
     user: null,
@@ -78,8 +87,8 @@ const initialState: AppState = {
     weeklyProgress: [],
     darkMode: false,
     session: null,
-    showWizard: false, // Inicialmente escondido
-    isGeneratingPlan: false, // Inicialmente false
+    showWizard: false,
+    isGeneratingPlan: false,
 };
 
 const getSaoPauloDate = (): Date => {
@@ -142,6 +151,8 @@ const reducer = (state: AppState, action: Action): AppState => {
             return { ...state, showWizard: action.payload };
         case 'SET_IS_GENERATING_PLAN':
             return { ...state, isGeneratingPlan: action.payload };
+        case 'UPDATE_USER_PROFILE':
+            return { ...state, user: { ...state.user, ...action.payload } as UserProfile };
         default:
             return state;
     }
@@ -157,6 +168,7 @@ type AppContextType = {
     loadDietPlansFromDB: (userId: string) => Promise<DietPlan[]>;
     resetWeekProgress: () => Promise<void>;
     refreshDashboardData: () => Promise<void>;
+    updateUserProfile: (profile: Partial<UserProfile>) => Promise<void>; // NOVO: Adiciona a função
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -164,6 +176,30 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [state, dispatch] = useReducer(reducer, initialState);
     const { user: authUser, session: authSession } = useAuth();
+    
+    // NOVO: Adiciona a função updateUserProfile
+    const updateUserProfile = async (profile: Partial<UserProfile>) => {
+      try {
+        if (!authUser) throw new Error('Usuário não autenticado.');
+        
+        console.log('Atualizando perfil do usuário:', profile);
+        
+        const { error } = await supabase
+          .from('usuarios')
+          .update(profile)
+          .eq('id', authUser.id);
+        
+        if (error) throw error;
+        
+        // Atualiza o estado local após o sucesso da requisição
+        dispatch({ type: 'UPDATE_USER_PROFILE', payload: profile });
+        
+      } catch (err) {
+        console.error('Erro ao atualizar perfil do usuário:', err);
+        throw err;
+      }
+    };
+
 
     // --- Load workout plans (returns formatted array) ---
     const loadWorkoutPlansFromDB = async (userId: string) => {
@@ -626,7 +662,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             loadWorkoutPlansFromDB,
             loadDietPlansFromDB,
             resetWeekProgress,
-            refreshDashboardData
+            refreshDashboardData,
+            updateUserProfile,
         }}>
             {children}
         </AppContext.Provider>

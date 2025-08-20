@@ -16,7 +16,7 @@ export const SettingsTab: React.FC = () => {
     // Pega o estado, o dispatch e a função de atualização do perfil do contexto
     const { state, updateUserProfile, dispatch } = useApp();
     const [isLoading, setIsLoading] = useState(false);
-
+    
     const parsedPreferences = useMemo((): UserPreferences => {
         try {
             if (state.user?.preferencias && typeof state.user.preferencias === 'string') {
@@ -44,6 +44,7 @@ export const SettingsTab: React.FC = () => {
         language: parsedPreferences.language,
     });
 
+    // Sincroniza o estado local do formulário com o estado global do contexto
     useEffect(() => {
         if (state.user) {
             setFormData({
@@ -62,7 +63,7 @@ export const SettingsTab: React.FC = () => {
                 language: currentParsedPreferences.language ?? 'pt_BR',
             });
         }
-    }, [state.user, parsedPreferences]);
+    }, [state.user]);
 
     const handleSave = async () => {
         setIsLoading(true);

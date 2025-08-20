@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dumbbell, Target, Video, Check, RefreshCw, Award, BarChart2, Zap, ChevronDown, Lock } from 'lucide-react';
+import { Dumbbell, Target, Video, Check, RefreshCw, Award, BarChart2, Zap, ChevronDown, Lock, Moon } from 'lucide-react';
 
 // Imports reais dos seus componentes e contexto
 import { useApp } from '../../context/AppContext';
@@ -37,7 +37,7 @@ const useTranslation = () => (key: string) => ({
     sets: 'séries', reps: 'reps', completed: 'Concluído', markAsCompleted: 'Marcar como Concluído'
 }[key] || key);
 
-// NOVO: Função para obter o nome do dia atual em formato normalizado
+// Função para obter o nome do dia atual em formato normalizado
 const getNormalizedDayName = (date?: Date): string => {
     const target = date || new Date();
     const dayName = target.toLocaleDateString('pt-BR', { weekday: 'long' }).replace('-feira', '');
@@ -57,14 +57,15 @@ export const WorkoutTab = () => {
     const [isCompletingExercise, setIsCompletingExercise] = useState<string | null>(null);
     const t = useTranslation();
 
-    // Usar os dados do contexto diretamente
     const workoutPlan = state.workoutPlan as WorkoutDay[] | null;
     const isLoading = state.loading;
 
-    // NOVO: Obtém o dia atual para controle
+    // Obtém o dia atual e a ordem dos dias
     const currentDayName = getNormalizedDayName();
+    const orderedDays = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+    const currentDayIndex = orderedDays.indexOf(currentDayName);
 
-    // NOVO: Sincroniza o estado local do modal com o estado global
+    // Sincroniza o estado local do modal com o estado global
     useEffect(() => {
         if (workoutPlan && selectedDay) {
             const updatedDay = workoutPlan.find(d => d.id === selectedDay.id);
@@ -75,8 +76,6 @@ export const WorkoutTab = () => {
     }, [workoutPlan, selectedDay?.id]);
 
     const handleDayClick = (day: WorkoutDay) => {
-        // CORREÇÃO: Removido o bloqueio para permitir a visualização de treinos passados/futuros.
-        // O usuário pode clicar em qualquer dia de treino com exercícios.
         if (day.exercicios_treino && day.exercicios_treino.length > 0) {
             setSelectedDay(day);
             setIsModalOpen(true);
@@ -87,7 +86,6 @@ export const WorkoutTab = () => {
     const handleCompleteExercise = async (exerciseId: string) => {
         if (!selectedDay) return;
 
-        // NOVO: Impede a conclusão de exercícios de outros dias
         if (selectedDay.dia_semana !== currentDayName) {
             alert('Você só pode concluir exercícios do dia atual.');
             return;
@@ -96,12 +94,8 @@ export const WorkoutTab = () => {
         try {
             setIsCompletingExercise(exerciseId);
             console.log('Marcando exercício como concluído:', exerciseId);
-            
-            // Usar a função do contexto que já atualiza tudo
             await markExerciseAsCompleted(exerciseId);
-            
             console.log('Exercício marcado como concluído com sucesso');
-            
         } catch (error) {
             console.error("Erro ao marcar exercício como concluído:", error);
             alert("Erro ao marcar exercício como concluído. Tente novamente.");
@@ -117,12 +111,10 @@ export const WorkoutTab = () => {
                 await resetWeekProgress();
                 console.log('Reset concluído com sucesso');
                 
-                // Fechar modal se estiver aberto
                 if (isModalOpen) {
                     setIsModalOpen(false);
                     setSelectedDay(null);
                 }
-                
             } catch (error) {
                 console.error("Erro ao resetar semana:", error);
                 alert("Erro ao resetar o progresso. Tente novamente.");
@@ -134,7 +126,6 @@ export const WorkoutTab = () => {
         setOpenVideoId(prevId => (prevId === exerciseId ? null : exerciseId));
     };
 
-    // Renderização condicional para estados de carregamento e erro
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
@@ -144,7 +135,6 @@ export const WorkoutTab = () => {
         );
     }
 
-    // Renderização condicional se o plano não existir
     if (!workoutPlan || workoutPlan.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
@@ -157,7 +147,6 @@ export const WorkoutTab = () => {
         );
     }
 
-    // Estatísticas calculadas a partir do plano real
     const daysWithWorkout = workoutPlan.filter(d => d.exercicios_treino && d.exercicios_treino.length > 0);
     const completedDaysCount = daysWithWorkout.filter(d => d.concluido).length;
     const totalWorkoutDays = daysWithWorkout.length;
@@ -181,22 +170,37 @@ export const WorkoutTab = () => {
                 <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {workoutPlan.map((day) => {
                         const hasWorkout = day.exercicios_treino && day.exercicios_treino.length > 0;
-                        const DayIcon = iconMap[day.dia_semana] || Dumbbell;
-                        const isCurrentDay = hasWorkout && day.dia_semana === currentDayName;
-                        // CORREÇÃO: Permite clicar em qualquer dia que tenha um treino, não apenas o atual ou concluído
+                        const dayIndex = orderedDays.indexOf(day.dia_semana);
+                        const isPastOrCurrentDay = dayIndex <= currentDayIndex;
+                        const isCurrentDay = dayIndex === currentDayIndex;
                         const isClickable = hasWorkout;
+
+                        // Lógica de cores do card
+                        let cardClasses = `p-6 rounded-2xl border transition-all duration-300 relative`;
+                        if (isClickable) {
+                            cardClasses += ' cursor-pointer';
+                        } else {
+                            cardClasses += ' opacity-60 cursor-not-allowed';
+                        }
+
+                        if (day.concluido) {
+                            cardClasses += ' bg-green-500/10 border-green-500/30';
+                        } else if (hasWorkout && isPastOrCurrentDay) {
+                            // Dias de treino não concluídos passados ou atuais ficam vermelhos
+                            cardClasses += ' bg-red-500/10 border-red-500/30 hover:border-red-500';
+                        } else if (hasWorkout) {
+                            // Dias de treino futuros ficam neutros
+                            cardClasses += ' bg-white dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 hover:border-blue-500';
+                        } else {
+                            // Dias de descanso têm cores neutras e hover sutil
+                            cardClasses += ' bg-white dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 hover:border-gray-500';
+                        }
 
                         return (
                             <motion.div
                                 key={day.id}
                                 whileHover={isClickable ? { y: -5, scale: 1.02 } : {}}
-                                className={`p-6 rounded-2xl border transition-all duration-300 relative ${
-                                    isClickable ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'
-                                } ${
-                                    day.concluido 
-                                        ? 'bg-green-500/10 border-green-500/30' 
-                                        : 'bg-white dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 hover:border-blue-500'
-                                }`}
+                                className={cardClasses}
                                 onClick={() => isClickable && handleDayClick(day)}
                             >
                                 <div className="flex justify-between items-start mb-4">
@@ -204,9 +208,14 @@ export const WorkoutTab = () => {
                                         <h3 className="text-xl font-bold text-gray-900 dark:text-white capitalize">{t(day.dia_semana)}</h3>
                                         <p className="text-gray-600 dark:text-gray-400">{day.nome}</p>
                                     </div>
-                                    {DayIcon && (
+                                    {/* Lógica de ícones: haltere para treino, lua para descanso */}
+                                    {hasWorkout ? (
                                         <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${day.concluido ? 'bg-green-500/20 text-green-600 dark:text-green-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'}`}>
-                                            <DayIcon size={24} />
+                                            <Dumbbell size={24} />
+                                        </div>
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-gray-500/10 text-gray-600 dark:text-gray-400">
+                                            <Moon size={24} />
                                         </div>
                                     )}
                                     {day.concluido && <Check className="absolute top-4 right-4 text-green-600 dark:text-green-400" size={20} />}

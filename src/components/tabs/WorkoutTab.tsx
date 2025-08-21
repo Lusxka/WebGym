@@ -198,6 +198,16 @@ export const WorkoutTab = () => {
         setOpenVideoId(prevId => (prevId === exerciseId ? null : exerciseId));
     };
 
+    // Gera um array de objetos para as estrelas com propriedades aleatórias
+    const totalStars = 20;
+    const starPositions = useMemo(() => Array.from({ length: totalStars }, () => ({
+        top: `${Math.random() * 100}%`,
+        left: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 5}s`,
+        animationDuration: `${Math.random() * 4 + 3}s`,
+        size: `${Math.random() * 2 + 1}px`
+    })), [totalStars]);
+
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
@@ -269,27 +279,21 @@ export const WorkoutTab = () => {
                         // é o dia agendado para hoje?
                         const isCurrentDay = !!scheduledDate && scheduledDate.getTime() === todayStart.getTime();
 
-                        // Determinar o tipo do card baseado nas condições (usando a mesma lógica do código 1)
-                        let cardType = 'neutral'; // padrão
+                        // Determinar o tipo do card baseado nas condições
+                        let cardType = 'neutral';
                         
                         if (!hasWorkout) {
-                            // Dia de descanso - sempre neutro/relaxante
                             cardType = 'rest';
                         } else if (day.concluido) {
-                            // Treino concluído - verde
                             cardType = 'completed';
                         } else if (isPastScheduledDate) {
-                            // Treino não concluído no passado - vermelho
                             cardType = 'overdue';
                         } else {
-                            // Treino futuro - azul/neutro
                             cardType = 'upcoming';
                         }
 
-                        // Classes base do card (aplicando a estilização do código 1)
                         let cardClasses = `p-6 rounded-2xl border transition-all duration-300 relative overflow-hidden cursor-pointer`;
 
-                        // Aplicar estilos baseados no tipo (copiado do código 1)
                         switch (cardType) {
                             case 'rest':
                                 cardClasses += ' bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-200/50 dark:border-indigo-700/30 hover:border-indigo-300 dark:hover:border-indigo-600';
@@ -307,7 +311,6 @@ export const WorkoutTab = () => {
                                 cardClasses += ' bg-white dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 hover:border-gray-400';
                         }
 
-                        // Adicionar indicador de dia atual
                         if (isCurrentDay) {
                             cardClasses += ' ring-2 ring-blue-500 ring-opacity-50';
                         }
@@ -330,19 +333,30 @@ export const WorkoutTab = () => {
                                     e.currentTarget.style.transform = 'translateY(0) scale(1)';
                                 }}
                             >
-                                {/* Background decorativo para dias de descanso (copiado do código 1) */}
                                 {!hasWorkout && (
                                     <div className="absolute inset-0 opacity-5 dark:opacity-10">
-                                        <div className="absolute top-4 right-4">
-                                            <Stars size={32} className="text-indigo-600" />
+                                        <div className="absolute top-4 right-4 text-indigo-600 dark:text-indigo-400">
+                                            <Moon size={32} />
                                         </div>
-                                        <div className="absolute bottom-4 left-4">
-                                            <Moon size={24} className="text-indigo-500" />
+                                        <div className="stars-container">
+                                            {starPositions.map((style, index) => (
+                                                <span 
+                                                    key={index}
+                                                    className="star" 
+                                                    style={{ 
+                                                        top: style.top, 
+                                                        left: style.left,
+                                                        animationDelay: style.animationDelay,
+                                                        animationDuration: style.animationDuration,
+                                                        width: style.size,
+                                                        height: style.size,
+                                                    }}
+                                                />
+                                            ))}
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Indicador de dia atual */}
                                 {isCurrentDay && (
                                     <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
                                         <Calendar size={12} className="text-white" />
@@ -355,14 +369,10 @@ export const WorkoutTab = () => {
                                             {t(day.dia_semana)}
                                             {isCurrentDay && <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">HOJE</span>}
                                         </h3>
+                                        {/* Apenas o nome do treino é mantido, o texto de descanso foi removido */}
                                         <p className="text-gray-600 dark:text-gray-400">{day.nome}</p>
-                                        {/* Mostrar data agendada (opcional) */}
-                                        {scheduledDate && (
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Agendado em: {scheduledDate.toLocaleDateString()}</p>
-                                        )}
                                     </div>
                                     
-                                    {/* Ícone baseado no tipo do dia (usando a estilização do código 1) */}
                                     {hasWorkout ? (
                                         <div 
                                             className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-300 ${
@@ -371,7 +381,7 @@ export const WorkoutTab = () => {
                                                     : cardType === 'overdue'
                                                         ? 'bg-red-500/20 text-red-600 dark:text-red-400'
                                                         : 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
-                                            }`}
+                                                }`}
                                             onMouseEnter={(e) => {
                                                 e.currentTarget.style.transform = 'rotate(-10deg)';
                                             }}
@@ -392,7 +402,6 @@ export const WorkoutTab = () => {
                                         </div>
                                     )}
                                     
-                                    {/* Indicadores de status (copiado do código 1) */}
                                     {day.concluido && (
                                         <div
                                             className="absolute top-4 right-4 transition-all duration-300"
@@ -408,7 +417,6 @@ export const WorkoutTab = () => {
                                     )}
                                 </div>
 
-                                {/* Conteúdo do card (aplicando estilização do código 1 para dias de descanso) */}
                                 {hasWorkout ? (
                                     <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-500 mt-6">
                                         <span><BarChart2 size={14} className="inline mr-1" /> {day.exercicios_treino?.filter(e => e.concluido).length || 0}/{day.exercicios_treino?.length || 0} feitos</span>
@@ -421,6 +429,7 @@ export const WorkoutTab = () => {
                                         </div>
                                         <p className="text-gray-500 dark:text-gray-400 text-sm">
                                             Momento para recuperação e regeneração muscular.
+                                            Aproveite para recarregar as energias.
                                         </p>
                                     </div>
                                 )}
@@ -430,7 +439,6 @@ export const WorkoutTab = () => {
                 </section>
             </main>
 
-            {/* CSS para animações (copiado do código 1) */}
             <style jsx>{`
                 @keyframes gentle-float {
                     0%, 100% { transform: rotate(0deg) scale(1); }
@@ -441,6 +449,40 @@ export const WorkoutTab = () => {
                 @keyframes check-appear {
                     0% { transform: scale(0); opacity: 0; }
                     100% { transform: scale(1); opacity: 1; }
+                }
+                
+                @keyframes star-fall {
+                    0% {
+                        transform: translateY(0) rotate(0deg) scale(0.5);
+                        opacity: 0;
+                    }
+                    50% {
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: translateY(20px) rotate(360deg) scale(0.8);
+                        opacity: 0;
+                    }
+                }
+
+                .stars-container {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    overflow: hidden;
+                    pointer-events: none;
+                }
+
+                .star {
+                    position: absolute;
+                    background: #FBBF24;
+                    border-radius: 50%;
+                    box-shadow: 0 0 5px #FBBF24;
+                    animation-name: star-fall;
+                    animation-iteration-count: infinite;
+                    animation-timing-function: linear;
                 }
             `}</style>
 

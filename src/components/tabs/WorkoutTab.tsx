@@ -335,9 +335,7 @@ export const WorkoutTab = () => {
                             >
                                 {!hasWorkout && (
                                     <div className="absolute inset-0 opacity-5 dark:opacity-10">
-                                        <div className="absolute top-4 right-4 text-indigo-600 dark:text-indigo-400">
-                                            <Moon size={32} />
-                                        </div>
+                                        {/* Apenas o container das estrelas animadas permanece */}
                                         <div className="stars-container">
                                             {starPositions.map((style, index) => (
                                                 <span 
@@ -369,7 +367,6 @@ export const WorkoutTab = () => {
                                             {t(day.dia_semana)}
                                             {isCurrentDay && <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">HOJE</span>}
                                         </h3>
-                                        {/* Apenas o nome do treino é mantido, o texto de descanso foi removido */}
                                         <p className="text-gray-600 dark:text-gray-400">{day.nome}</p>
                                     </div>
                                     

@@ -4,6 +4,8 @@ import { User, Globe, Palette, Save } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Card } from '../Card';
 import { Button } from '../Button';
+import { ConfirmationModal } from '../ConfirmationModal';
+import { ToastNotification } from '../ToastNotification';
 import { useTranslation } from '../../data/translations';
 import { UserProfile } from '../../context/AppContext';
 
@@ -16,6 +18,13 @@ export const SettingsTab: React.FC = () => {
     // Pega o estado, o dispatch e a função de atualização do perfil do contexto
     const { state, updateUserProfile, dispatch } = useApp();
     const [isLoading, setIsLoading] = useState(false);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [showToast, setShowToast] = useState(false);
+    const [toastConfig, setToastConfig] = useState({
+        title: '',
+        message: '',
+        type: 'success' as 'success' | 'error'
+    });
     
     const parsedPreferences = useMemo((): UserPreferences => {
         try {
@@ -83,12 +92,35 @@ export const SettingsTab: React.FC = () => {
                     language: preferences.language
                 }),
             });
-            alert('Perfil salvo com sucesso!');
+            
+            // Fechar o modal de confirmação
+            setShowConfirmModal(false);
+            
+            // Mostrar notificação de sucesso
+            setToastConfig({
+                title: 'Perfil Atualizado!',
+                message: 'Suas informações foram salvas com sucesso.',
+                type: 'success'
+            });
+            setShowToast(true);
+            
         } catch (error) {
-            alert('Erro ao salvar o perfil. Tente novamente.');
+            setShowConfirmModal(false);
+            
+            // Mostrar notificação de erro
+            setToastConfig({
+                title: 'Erro ao Salvar',
+                message: 'Não foi possível salvar suas alterações. Tente novamente.',
+                type: 'error'
+            });
+            setShowToast(true);
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleSaveClick = () => {
+        setShowConfirmModal(true);
     };
 
     const ToggleSwitch = ({ enabled, onClick }: { enabled: boolean, onClick: () => void }) => (
@@ -221,10 +253,33 @@ export const SettingsTab: React.FC = () => {
 
             {/* Botão Salvar */}
             <div className="flex justify-end">
-                <Button onClick={handleSave} icon={Save} size="lg" disabled={isLoading}>
-                    {isLoading ? 'Salvando...' : t('save')}
+                <Button onClick={handleSaveClick} icon={Save} size="lg" disabled={isLoading}>
+                    {t('save')}
                 </Button>
             </div>
+
+            {/* Modal de Confirmação */}
+            <ConfirmationModal
+                isOpen={showConfirmModal}
+                onClose={() => setShowConfirmModal(false)}
+                onConfirm={handleSave}
+                title="Salvar Alterações"
+                message="Tem certeza de que deseja salvar todas as alterações feitas no seu perfil? Esta ação não pode ser desfeita."
+                type="info"
+                confirmText="Salvar Alterações"
+                cancelText="Cancelar"
+                isLoading={isLoading}
+            />
+
+            {/* Notificação Toast */}
+            <ToastNotification
+                isOpen={showToast}
+                onClose={() => setShowToast(false)}
+                title={toastConfig.title}
+                message={toastConfig.message}
+                type={toastConfig.type}
+                duration={4000}
+            />
         </div>
     );
 };

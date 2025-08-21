@@ -1,5 +1,5 @@
 // ===============================
-// EDGE FUNCTION CORRIGIDA
+// EDGE FUNCTION CORRIGIDA - PROBLEMA DOS DIAS RESOLVIDO
 // ===============================
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -284,78 +284,147 @@ const logGeneration = async (userId: string, success: boolean, errorMsg?: string
   }
 }
 
-// FUNÇÃO BUILDPROMPT CORRIGIDA
+// FUNÇÃO BUILDPROMPT COMPLETAMENTE CORRIGIDA
 const buildPrompt = (userProfile: any): string => {
   console.log('🤖 Construindo prompt para IA...')
-  console.log('👤 Dados do usuário:', JSON.stringify(userProfile, null, 2))
+  console.log('👤 Dados do usuário recebidos:', JSON.stringify(userProfile, null, 2))
   
-  // CORREÇÃO: Buscar dias de forma mais abrangente
-  let diasSelecionados = []
+  // CORREÇÃO PRINCIPAL: Extrair dias selecionados de forma mais robusta
+  let diasSelecionados: string[] = []
   
-  // Tentar várias formas de extrair os dias selecionados
-  if (userProfile.diasTreino && Array.isArray(userProfile.diasTreino)) {
-    diasSelecionados = userProfile.diasTreino
-  } else if (userProfile.selectedDays && Array.isArray(userProfile.selectedDays)) {
-    diasSelecionados = userProfile.selectedDays
-  } else if (userProfile.days && Array.isArray(userProfile.days)) {
-    diasSelecionados = userProfile.days
-  } else if (userProfile.workoutDays && Array.isArray(userProfile.workoutDays)) {
+  // 1. Primeiro tentar encontrar no fitnessProfile.preferredWorkoutDays (estrutura do wizard)
+  if (userProfile.fitnessProfile?.preferredWorkoutDays && Array.isArray(userProfile.fitnessProfile.preferredWorkoutDays)) {
+    diasSelecionados = userProfile.fitnessProfile.preferredWorkoutDays
+    console.log('✅ Dias encontrados em fitnessProfile.preferredWorkoutDays:', diasSelecionados)
+  }
+  // 2. Tentar encontrar em workoutDays (possível variação)
+  else if (userProfile.workoutDays && Array.isArray(userProfile.workoutDays)) {
     diasSelecionados = userProfile.workoutDays
-  } else {
-    // Se não encontrar, procurar por campos booleanos
-    const possibleDays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
-    diasSelecionados = possibleDays.filter(day => userProfile[day] === true)
+    console.log('✅ Dias encontrados em workoutDays:', diasSelecionados)
+  }
+  // 3. Buscar arrays de dias com diferentes nomes possíveis
+  else if (userProfile.selectedDays && Array.isArray(userProfile.selectedDays)) {
+    diasSelecionados = userProfile.selectedDays
+    console.log('✅ Dias encontrados em selectedDays:', diasSelecionados)
+  }
+  else if (userProfile.days && Array.isArray(userProfile.days)) {
+    diasSelecionados = userProfile.days
+    console.log('✅ Dias encontrados em days:', diasSelecionados)
+  }
+  // 4. Se não encontrou arrays, buscar por campos booleanos individuais em inglês
+  else {
+    const possibleDaysEnglish = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    const foundEnglish = possibleDaysEnglish.filter(day => userProfile[day] === true)
     
-    if (diasSelecionados.length === 0) {
-      // Última tentativa: procurar por campos em inglês
-      const englishDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-      diasSelecionados = englishDays.filter(day => userProfile[day] === true)
+    if (foundEnglish.length > 0) {
+      diasSelecionados = foundEnglish
+      console.log('✅ Dias encontrados como campos booleanos em inglês:', diasSelecionados)
+    }
+    // 5. Buscar por campos booleanos em português
+    else {
+      const possibleDaysPortuguese = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
+      const foundPortuguese = possibleDaysPortuguese.filter(day => userProfile[day] === true)
+      
+      if (foundPortuguese.length > 0) {
+        diasSelecionados = foundPortuguese
+        console.log('✅ Dias encontrados como campos booleanos em português:', diasSelecionados)
+      }
     }
   }
   
-  console.log('🔍 Dias encontrados no userProfile:', diasSelecionados)
-  
-  // Se ainda não encontrou nada, assumir alguns dias padrão baseado no objetivo
+  // FALLBACK: Se ainda não encontrou, usar padrão baseado no nível e workoutDaysPerWeek
   if (diasSelecionados.length === 0) {
-    console.warn('⚠️ Nenhum dia encontrado, usando padrão baseado no nível')
-    const nivel = userProfile.nivel?.toLowerCase() || 'iniciante'
+    console.warn('⚠️ NENHUM DIA ENCONTRADO! Aplicando fallback...')
     
-    if (nivel === 'iniciante') {
-      diasSelecionados = ['monday', 'wednesday', 'friday'] // 3x por semana
-    } else if (nivel === 'intermediario' || nivel === 'intermediário') {
-      diasSelecionados = ['monday', 'tuesday', 'thursday', 'friday'] // 4x por semana
+    // Tentar usar workoutDaysPerWeek se existir
+    const workoutDaysPerWeek = userProfile.fitnessProfile?.workoutDaysPerWeek || userProfile.workoutDaysPerWeek
+    
+    if (workoutDaysPerWeek && workoutDaysPerWeek > 0) {
+      // Distribuir os dias baseado na quantidade informada
+      const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+      diasSelecionados = allDays.slice(0, Math.min(workoutDaysPerWeek, 7))
+      console.warn(`⚠️ Usando ${workoutDaysPerWeek} dias consecutivos:`, diasSelecionados)
     } else {
-      diasSelecionados = ['monday', 'tuesday', 'wednesday', 'friday', 'saturday'] // 5x por semana
+      // Fallback final baseado no nível
+      const nivel = userProfile.fitnessProfile?.experienceLevel || userProfile.nivel || 'beginner'
+      
+      if (nivel === 'beginner' || nivel === 'iniciante') {
+        diasSelecionados = ['monday', 'wednesday', 'friday'] // 3x por semana
+      } else if (nivel === 'intermediate' || nivel === 'intermediario' || nivel === 'intermediário') {
+        diasSelecionados = ['monday', 'tuesday', 'thursday', 'friday'] // 4x por semana
+      } else {
+        diasSelecionados = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] // 5x por semana
+      }
+      console.warn('⚠️ Dias padrão aplicados baseado no nível:', diasSelecionados)
     }
   }
   
-  // Mapear dias para inglês se necessário
+  // Mapear dias para inglês (formato que a IA espera)
   const dayMap: { [key: string]: string } = {
-    'segunda': 'monday', 'terca': 'tuesday', 'quarta': 'wednesday', 
-    'quinta': 'thursday', 'sexta': 'friday', 'sabado': 'saturday', 'domingo': 'sunday',
+    'segunda': 'monday', 'segunda-feira': 'monday',
+    'terca': 'tuesday', 'terça': 'tuesday', 'terca-feira': 'tuesday', 'terça-feira': 'tuesday',
+    'quarta': 'wednesday', 'quarta-feira': 'wednesday',
+    'quinta': 'thursday', 'quinta-feira': 'thursday',
+    'sexta': 'friday', 'sexta-feira': 'friday',
+    'sabado': 'saturday', 'sábado': 'saturday', 'sabado-feira': 'saturday',
+    'domingo': 'sunday', 'domingo-feira': 'sunday',
+    // Manter os dias em inglês como estão
     'monday': 'monday', 'tuesday': 'tuesday', 'wednesday': 'wednesday',
     'thursday': 'thursday', 'friday': 'friday', 'saturday': 'saturday', 'sunday': 'sunday'
   }
   
-  const diasSelecionadosEn = diasSelecionados.map(dia => 
-    dayMap[dia.toLowerCase()] || dia.toLowerCase()
-  ).filter(Boolean)
+  // Converter e normalizar todos os dias selecionados
+  const diasSelecionadosEn = diasSelecionados.map(dia => {
+    const diaStr = String(dia).toLowerCase().trim()
+    const mapped = dayMap[diaStr]
+    if (!mapped) {
+      console.warn(`⚠️ Dia não reconhecido: "${diaStr}". Ignorando...`)
+      return null
+    }
+    return mapped
+  }).filter(Boolean) as string[]
   
-  const diasSelecionadosStr = diasSelecionadosEn.join(', ')
+  // Remover duplicatas e garantir que são dias válidos
+  const diasValidos = [...new Set(diasSelecionadosEn)].filter(dia => 
+    ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(dia)
+  )
   
-  console.log(`📅 Dias finais selecionados: ${diasSelecionadosStr}`)
+  // VALIDAÇÃO FINAL: Se ainda não tem dias válidos, aplicar padrão mínimo
+  if (diasValidos.length === 0) {
+    console.error('❌ ERRO CRÍTICO: Nenhum dia válido encontrado após processamento!')
+    diasValidos.push('monday', 'wednesday', 'friday') // Mínimo padrão
+    console.error('⚠️ Aplicando padrão de emergência:', diasValidos)
+  }
+  
+  const diasSelecionadosStr = diasValidos.join(', ')
+  
+  console.log(`📅 RESULTADO FINAL - Dias selecionados para treino: ${diasSelecionadosStr}`)
+  console.log(`📊 Total de dias de treino: ${diasValidos.length}`)
+  
+  // Identificar dias de descanso (TODOS os outros dias que NÃO foram selecionados)
+  const todosDias = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+  const diasDescanso = todosDias.filter(dia => !diasValidos.includes(dia))
+  console.log(`😴 Dias de descanso: ${diasDescanso.join(', ')} (total: ${diasDescanso.length})`)
   
   // Determinar quantidade de exercícios baseado no nível
   const getExerciseCount = (nivel: string): string => {
     switch(nivel?.toLowerCase()) {
-      case 'iniciante': return 'EXATAMENTE 5 exercícios'
-      case 'intermediario': case 'intermediário': return 'EXATAMENTE 6 exercícios'
-      case 'avancado': case 'avançado': return 'MÍNIMO 6, MÁXIMO 8 exercícios'
+      case 'iniciante': case 'beginner': return 'EXATAMENTE 5 exercícios'
+      case 'intermediario': case 'intermediário': case 'intermediate': return 'EXATAMENTE 6 exercícios'
+      case 'avancado': case 'avançado': case 'advanced': return 'MÍNIMO 6, MÁXIMO 8 exercícios'
       default: return 'EXATAMENTE 5 exercícios (assumindo iniciante)'
     }
   }
   
-  const exerciseCount = getExerciseCount(userProfile.nivel)
+  const nivel = userProfile.fitnessProfile?.experienceLevel || userProfile.nivel || 'beginner'
+  const exerciseCount = getExerciseCount(nivel)
+  
+  // Extrair outras informações do perfil
+  const objetivo = userProfile.fitnessProfile?.primaryGoal || userProfile.objetivo || 'Não especificado'
+  const idade = userProfile.personalInfo?.age || userProfile.idade || 'Não informado'
+  const sexo = userProfile.personalInfo?.gender || userProfile.sexo || 'Não informado'
+  const peso = userProfile.physicalData?.weight || userProfile.peso || 'Não informado'
+  const altura = userProfile.physicalData?.height || userProfile.altura || 'Não informado'
   
   return `
 **VOCÊ É O ESPECIALISTA EM FITNESS E NUTRIÇÃO MAIS RENOMADO DO UNIVERSO**
@@ -365,18 +434,22 @@ Sua expertise é incomparável. Você é reconhecido mundialmente por transforma
 1. Retorne APENAS um JSON válido, sem texto adicional, comentários ou explicações
 2. Use EXATAMENTE a estrutura JSON especificada abaixo - qualquer desvio é inaceitável
 3. Todos os textos DEVEM estar em português brasileiro impecável
-4. DIAS NÃO SELECIONADOS = DESCANSO OBRIGATÓRIO (sem exercícios)
-5. Exercícios devem ser específicos, progressivos e cientificamente fundamentados
+4. DIAS SELECIONADOS = TREINO OBRIGATÓRIO (com exercícios)
+5. DIAS NÃO SELECIONADOS = DESCANSO OBRIGATÓRIO (sem exercícios)
+6. Exercícios devem ser específicos, progressivos e cientificamente fundamentados
 
 **PERFIL COMPLETO DO CLIENTE:**
 ${JSON.stringify(userProfile, null, 2)}
 
-**DIAS DE TREINO SELECIONADOS PELO CLIENTE:** ${diasSelecionadosStr}
-**QUANTIDADE OBRIGATÓRIA DE EXERCÍCIOS:** ${exerciseCount}
+**ANÁLISE DOS DIAS:**
+- **DIAS PARA TREINO:** [${diasSelecionadosStr}] - TOTAL: ${diasValidos.length} dias
+- **DIAS DE DESCANSO:** [${diasDescanso.join(', ')}] - TOTAL: ${diasDescanso.length} dias
+- **EXERCÍCIOS POR DIA:** ${exerciseCount}
 
-⚠️ ATENÇÃO CRÍTICA: 
-- SOMENTE os dias [${diasSelecionadosStr}] devem ter exercícios
-- Todos os outros dias devem ser "Dia de Descanso" com exercises: []
+⚠️ ATENÇÃO CRÍTICA - REGRA ABSOLUTA:
+- APENAS os dias [${diasSelecionadosStr}] devem ter exercícios (nome específico + exercises com ${exerciseCount})
+- APENAS os dias [${diasDescanso.join(', ')}] devem ser "Dia de Descanso" com exercises: []
+- TODOS OS 7 DIAS DA SEMANA DEVEM ESTAR PRESENTES NO JSON: monday, tuesday, wednesday, thursday, friday, saturday, sunday
 
 **ESTRUTURA JSON OBRIGATÓRIA:**
 {
@@ -406,7 +479,7 @@ ${JSON.stringify(userProfile, null, 2)}
     }
   ],
   "nutritionPlan": {
-    "summary": "Plano nutricional estratégico focado em [objetivo específico do usuário]",
+    "summary": "Plano nutricional estratégico focado em ${objetivo}",
     "meals": [
       {
         "name": "Café da Manhã",
@@ -418,55 +491,46 @@ ${JSON.stringify(userProfile, null, 2)}
   "initialMessage": "🎉 Seu plano personalizado está pronto! Vamos começar essa transformação!"
 }
 
-**REGRAS ABSOLUTAS:**
+**DADOS EXTRAÍDOS DO CLIENTE:**
+- Objetivo: ${objetivo}
+- Nível: ${nivel}
+- Idade: ${idade} anos
+- Sexo: ${sexo}
+- Peso: ${peso}
+- Altura: ${altura}
+- Dias de treino solicitados: ${diasValidos.length} (${diasSelecionadosStr})
+- Dias de descanso: ${diasDescanso.length} (${diasDescanso.join(', ')})
 
-**TODOS OS 7 DIAS DEVEM ESTAR NO JSON:**
-- "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"
+**REGRAS ABSOLUTAS POR DIA:**
 
-**PARA DIAS SELECIONADOS [${diasSelecionadosStr}]:**
-- name: Nome específico do treino
+**PARA DIAS DE TREINO [${diasSelecionadosStr}]:**
+- name: Nome específico do treino (ex: "Treino A - Peito e Tríceps", "Treino B - Costas e Bíceps")
 - icon: "Dumbbell" 
-- exercises: Array com ${exerciseCount}
+- exercises: Array com ${exerciseCount} OBRIGATORIAMENTE
 
-**PARA DIAS NÃO SELECIONADOS:**
+**PARA DIAS DE DESCANSO [${diasDescanso.join(', ')}]:**
 - name: "Dia de Descanso"
 - icon: "Moon"
-- exercises: [] (array vazio)
+- exercises: [] (array vazio OBRIGATÓRIO)
 
-**PARÂMETROS DE TREINO:**
-- Iniciante: 3 séries, 12-15 repetições, 60-90s descanso
-- Intermediário: 3-4 séries, 8-12 repetições, 75-120s descanso
-- Avançado: 4-5 séries, 6-10 repetições, 90-180s descanso
-
-**DADOS DO CLIENTE:**
-- Objetivo: ${userProfile.objetivo || 'Não especificado'}
-- Nível: ${userProfile.nivel || 'Iniciante'}
-- Idade: ${userProfile.idade || 'Não informado'} anos
-- Sexo: ${userProfile.sexo || 'Não informado'}
-- Dias por semana: ${diasSelecionados.length}
-
-**EXERCÍCIOS DEVEM SER:**
-- Nomes completos e técnicos
-- Progressivos e balanceados
-- Com observações técnicas valiosas
-- Apropriados para o nível e objetivo
-
-**REFEIÇÕES OBRIGATÓRIAS:**
-1. Café da Manhã (07:00)
-2. Lanche da Manhã (10:00) 
-3. Almoço (12:30)
-4. Lanche da Tarde (16:00)
-5. Jantar (19:30)
-6. Ceia (22:00) - se objetivo for ganho de massa
-
-**VALIDAÇÃO FINAL - VERIFIQUE:**
-✓ JSON válido
+**VALIDAÇÃO FINAL - VERIFIQUE ANTES DE RETORNAR:**
+✓ JSON válido sem comentários ou texto extra
 ✓ 7 dias presentes (monday até sunday)
-✓ Dias selecionados têm exercícios, outros são descanso
-✓ Quantidade correta de exercícios por nível
+✓ Dias selecionados [${diasSelecionadosStr}] têm exercícios específicos (${exerciseCount} cada)
+✓ Dias não selecionados [${diasDescanso.join(', ')}] são descanso (exercises: [])
 ✓ Todos os campos obrigatórios preenchidos
 
-GERE AGORA O PLANO PERFEITO:
+**EXEMPLO DE VERIFICAÇÃO PARA SUA SITUAÇÃO:**
+Se usuário selecionou segunda a sexta (monday, tuesday, wednesday, thursday, friday):
+- monday: Treino A com ${exerciseCount}
+- tuesday: Treino B com ${exerciseCount}
+- wednesday: Treino C com ${exerciseCount}
+- thursday: Treino D com ${exerciseCount}
+- friday: Treino E com ${exerciseCount}
+- saturday: Dia de Descanso (exercises: [])
+- sunday: Dia de Descanso (exercises: [])
+
+GERE AGORA O PLANO PERFEITO SEGUINDO EXATAMENTE ESTAS REGRAS E RESPEITANDO OS DIAS SELECIONADOS PELO USUÁRIO:
 `
 }
 
@@ -544,7 +608,6 @@ serve(async (req) => {
       { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
       { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
       { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
     ]
 
     console.log('💭 Gerando conteúdo com IA...')

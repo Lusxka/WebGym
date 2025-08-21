@@ -47,6 +47,7 @@ const WelcomeWizard = () => {
     return weightNum / (heightNum * heightNum);
   };
 
+  // FUNÇÃO CORRIGIDA: generateUserProfile com estrutura padronizada
   const generateUserProfile = () => {
     const bmi = calculateBMI(formData.weight, formData.height);
     let bmiCategory = null;
@@ -57,14 +58,19 @@ const WelcomeWizard = () => {
       else bmiCategory = "obese";
     }
 
+    // CORREÇÃO PRINCIPAL: Estrutura padronizada que a Edge Function espera
     const userProfile = {
       timestamp: new Date().toISOString(),
+      
+      // Informações pessoais
       personalInfo: {
         name: formData.name.trim(),
         age: parseInt(formData.age),
         gender: formData.gender,
         createdAt: new Date().toISOString().split('T')[0]
       },
+      
+      // Dados físicos
       physicalData: {
         weight: parseFloat(formData.weight.replace(",", ".")),
         height: parseFloat(formData.height.replace(",", ".")),
@@ -73,13 +79,18 @@ const WelcomeWizard = () => {
         bmi: bmi ? parseFloat(bmi.toFixed(1)) : null,
         bmiCategory: bmiCategory
       },
+      
+      // CORREÇÃO CRÍTICA: Perfil fitness com estrutura correta
       fitnessProfile: {
         experienceLevel: formData.level,
         primaryGoal: formData.goal,
         workoutDaysPerWeek: formData.workoutDays.length,
-        preferredWorkoutDays: formData.workoutDays,
+        // CAMPO PRINCIPAL que a Edge Function busca primeiro
+        preferredWorkoutDays: [...formData.workoutDays], // Cópia do array
         equipmentAccess: formData.equipmentAccess.trim()
       },
+      
+      // Informações de saúde
       healthInfo: {
         hasInjuries: formData.hasInjuries,
         injuries: formData.hasInjuries ? formData.injuries.trim() : null,
@@ -88,19 +99,47 @@ const WelcomeWizard = () => {
         takesMedications: formData.takesMedications,
         medications: formData.takesMedications ? formData.medications.trim() : null
       },
+      
+      // Configurações
       settings: {
         language: 'pt_BR',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         units: { weight: 'kg', height: 'cm' }
       },
+      
+      // CAMPOS DE BACKUP: Para garantir que a Edge Function encontre os dias
+      workoutDays: [...formData.workoutDays], // Backup 1
+      selectedDays: [...formData.workoutDays], // Backup 2
+      days: [...formData.workoutDays], // Backup 3
+      workoutDaysPerWeek: formData.workoutDays.length, // Backup 4
+      
+      // CAMPOS INDIVIDUAIS DE BACKUP (para casos extremos)
+      monday: formData.workoutDays.includes('monday'),
+      tuesday: formData.workoutDays.includes('tuesday'),
+      wednesday: formData.workoutDays.includes('wednesday'),
+      thursday: formData.workoutDays.includes('thursday'),
+      friday: formData.workoutDays.includes('friday'),
+      saturday: formData.workoutDays.includes('saturday'),
+      sunday: formData.workoutDays.includes('sunday'),
+      
+      // Metadados
       metadata: {
-        profileVersion: '1.0',
-        source: 'welcome-wizard',
-        completedSteps: totalSteps
+        profileVersion: '2.0', // Versão atualizada
+        source: 'welcome-wizard-fixed',
+        completedSteps: totalSteps,
+        workoutDaysDebug: {
+          original: formData.workoutDays,
+          length: formData.workoutDays.length,
+          stringified: JSON.stringify(formData.workoutDays)
+        }
       }
-    };
+    }
 
-    return JSON.stringify(userProfile, null, 2);
+    console.log('🔍 PERFIL GERADO COM DEBUG:', JSON.stringify(userProfile, null, 2))
+    console.log('📅 Dias selecionados:', formData.workoutDays)
+    console.log('📊 Total de dias:', formData.workoutDays.length)
+    
+    return userProfile;
   };
 
   const validateStep = (currentStep: number) => {
@@ -141,136 +180,170 @@ const WelcomeWizard = () => {
   };
 
   const handleFinish = async () => {
-  if (validateStep(step) && user) {
-    setIsGenerating(true);
-    setErrorGenerating(null);
-    dispatch({ type: 'SET_GENERATING_PLAN', payload: true });
+    if (validateStep(step) && user) {
+      // VALIDAÇÃO ADICIONAL ANTES DE ENVIAR
+      if (formData.workoutDays.length === 0) {
+        alert('Erro: Nenhum dia de treino selecionado. Por favor, selecione pelo menos um dia.');
+        return;
+      }
 
-    const userProfileObject = JSON.parse(generateUserProfile());
-    const functionUrl = import.meta.env.VITE_GEMINI_FUNCTION_URL;
+      console.log('🚀 INICIANDO PROCESSO DE GERAÇÃO...')
+      console.log('📅 Dias selecionados pelo usuário:', formData.workoutDays)
+      console.log('📊 Total de dias selecionados:', formData.workoutDays.length)
+      
+      setIsGenerating(true);
+      setErrorGenerating(null);
+      dispatch({ type: 'SET_GENERATING_PLAN', payload: true });
 
-    if (!functionUrl) {
-      console.error("VITE_GEMINI_FUNCTION_URL não está definida no .env");
-      alert("Erro de configuração. A URL da função não foi encontrada.");
-      setIsGenerating(false);
-      dispatch({ type: 'SET_GENERATING_PLAN', payload: false });
-      return;
+      const userProfileObject = generateUserProfile();
+      const functionUrl = import.meta.env.VITE_GEMINI_FUNCTION_URL;
+
+      if (!functionUrl) {
+        console.error("VITE_GEMINI_FUNCTION_URL não está definida no .env");
+        alert("Erro de configuração. A URL da função não foi encontrada.");
+        setIsGenerating(false);
+        dispatch({ type: 'SET_GENERATING_PLAN', payload: false });
+        return;
+      }
+
+      try {
+        console.log('🚀 Enviando dados para gerar plano personalizado...');
+        console.log('📋 Dados sendo enviados:', JSON.stringify({ userProfile: userProfileObject }, null, 2));
+        
+        const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ userProfile: userProfileObject }),
+        });
+
+        // CORREÇÃO CRÍTICA: Ler a resposta como texto primeiro para debug
+        const responseText = await response.text();
+        console.log('📥 Resposta raw do servidor:', responseText);
+
+        let result;
+        try {
+          result = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('❌ Erro ao parsear resposta JSON:', parseError);
+          console.error('📄 Resposta original:', responseText.substring(0, 1000));
+          throw new Error('Resposta do servidor em formato inválido');
+        }
+
+        if (!response.ok) {
+          console.error('❌ Resposta HTTP não OK:', response.status, result);
+          throw new Error(result.error || `Erro HTTP: ${response.status}`);
+        }
+
+        if (!result.success) {
+          console.error('❌ Operação não foi bem-sucedida:', result);
+          throw new Error(result.error || 'Falha na geração do plano');
+        }
+
+        console.log('✅ Plano gerado com sucesso!');
+
+        // Salvar perfil do usuário na tabela usuarios
+        const levelMapping: { [key: string]: string } = {
+          beginner: 'iniciante',
+          intermediate: 'intermediario',
+          advanced: 'avancado'
+        };
+        
+        const genderMapping: { [key: string]: string } = {
+          male: 'masculino',
+          female: 'feminino'
+        };
+
+        const userProfileForDb = {
+          id: user.id,
+          email: user.email,
+          senha_hash: user.id,
+          nome: formData.name,
+          idade: parseInt(formData.age),
+          peso: parseFloat(formData.weight.replace(',', '.')),
+          altura: parseFloat(formData.height.replace(',', '.')),
+          sexo: genderMapping[formData.gender] || formData.gender,
+          objetivo: formData.goal,
+          nivel: levelMapping[formData.level] || formData.level,
+        };
+
+        const { error: upsertError } = await supabase
+          .from('usuarios')
+          .upsert(userProfileForDb);
+
+        if (upsertError) {
+          console.error("Erro ao salvar perfil do usuário:", upsertError);
+          throw upsertError;
+        }
+
+        // Atualizar contexto da aplicação
+        dispatch({ type: 'UPDATE_USER_PROFILE', payload: userProfileForDb });
+        dispatch({ type: 'SET_PROFILE_COMPLETED', payload: true });
+
+        // Se a resposta contém workoutPlan (para compatibilidade com frontend)
+        if (result.data?.workoutPlan) {
+          dispatch({ type: 'SET_WORKOUT_PLAN', payload: result.data.workoutPlan });
+        }
+
+        // Fechar wizard
+        dispatch({ type: 'SHOW_WIZARD', payload: false });
+        
+        // Mostrar mensagem de sucesso
+        const successMessage = result.data?.initialMessage || '🎉 Seu plano personalizado foi gerado com sucesso!';
+        alert(successMessage);
+        
+        console.log('🎯 Processo concluído! Dados salvos no banco de dados.');
+        
+      } catch (error: any) {
+        console.error("❌ Falha ao gerar plano:", error);
+        
+        let errorMessage = 'Ocorreu um erro inesperado ao gerar seu plano.';
+        
+        if (error.message.includes('Token de autenticação')) {
+          errorMessage = 'Sessão expirou. Por favor, faça login novamente.';
+        } else if (error.message.includes('não autenticado')) {
+          errorMessage = 'Erro de autenticação. Tente fazer login novamente.';
+        } else if (error.message.includes('formato inválido')) {
+          errorMessage = 'A IA gerou uma resposta inválida. Tente novamente em alguns instantes.';
+        } else if (error.message.includes('HTTP')) {
+          errorMessage = 'Erro de conexão com o servidor. Verifique sua internet.';
+        } else {
+          errorMessage = `Erro: ${error.message}`;
+        }
+        
+        setErrorGenerating(errorMessage);
+        alert(`${errorMessage}\n\nSe o problema persistir, entre em contato com o suporte.`);
+        
+      } finally {
+        setIsGenerating(false);
+        dispatch({ type: 'SET_GENERATING_PLAN', payload: false });
+      }
     }
-
-    try {
-      console.log('🚀 Enviando dados para gerar plano personalizado...');
-      
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ userProfile: userProfileObject }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || `Erro HTTP: ${response.status}`);
-      }
-
-      if (!result.success) {
-        throw new Error(result.error || 'Falha na geração do plano');
-      }
-
-      console.log('✅ Plano gerado com sucesso!');
-
-      // Salvar perfil do usuário na tabela usuarios
-      const levelMapping: { [key: string]: string } = {
-        beginner: 'iniciante',
-        intermediate: 'intermediario',
-        advanced: 'avancado'
-      };
-      
-      const genderMapping: { [key: string]: string } = {
-        male: 'masculino',
-        female: 'feminino'
-      };
-
-      const userProfileForDb = {
-        id: user.id,
-        email: user.email,
-        senha_hash: user.id,
-        nome: formData.name,
-        idade: parseInt(formData.age),
-        peso: parseFloat(formData.weight.replace(',', '.')),
-        altura: parseFloat(formData.height.replace(',', '.')),
-        sexo: genderMapping[formData.gender] || formData.gender,
-        objetivo: formData.goal,
-        nivel: levelMapping[formData.level] || formData.level,
-      };
-
-      const { error: upsertError } = await supabase
-        .from('usuarios')
-        .upsert(userProfileForDb);
-
-      if (upsertError) {
-        console.error("Erro ao salvar perfil do usuário:", upsertError);
-        throw upsertError;
-      }
-
-      // Atualizar contexto da aplicação
-      dispatch({ type: 'UPDATE_USER_PROFILE', payload: userProfileForDb });
-      dispatch({ type: 'SET_PROFILE_COMPLETED', payload: true });
-
-      // Se a resposta contém workoutPlan (para compatibilidade com frontend)
-      if (result.workoutPlan) {
-        dispatch({ type: 'SET_WORKOUT_PLAN', payload: result.workoutPlan });
-      }
-
-      // Fechar wizard
-      dispatch({ type: 'SHOW_WIZARD', payload: false });
-      
-      // Mostrar mensagem de sucesso
-      const successMessage = result.initialMessage || '🎉 Seu plano personalizado foi gerado com sucesso!';
-      alert(successMessage);
-      
-      console.log('🎯 Processo concluído! Dados salvos no banco de dados.');
-      
-    } catch (error: any) {
-      console.error("❌ Falha ao gerar plano:", error);
-      
-      let errorMessage = 'Ocorreu um erro inesperado ao gerar seu plano.';
-      
-      if (error.message.includes('Token de autenticação')) {
-        errorMessage = 'Sessão expirou. Por favor, faça login novamente.';
-      } else if (error.message.includes('não autenticado')) {
-        errorMessage = 'Erro de autenticação. Tente fazer login novamente.';
-      } else if (error.message.includes('formato inválido')) {
-        errorMessage = 'A IA gerou uma resposta inválida. Tente novamente em alguns instantes.';
-      } else if (error.message.includes('HTTP')) {
-        errorMessage = 'Erro de conexão com o servidor. Verifique sua internet.';
-      } else {
-        errorMessage = `Erro: ${error.message}`;
-      }
-      
-      setErrorGenerating(errorMessage);
-      alert(`${errorMessage}\n\nSe o problema persistir, entre em contato com o suporte.`);
-      
-    } finally {
-      setIsGenerating(false);
-      dispatch({ type: 'SET_GENERATING_PLAN', payload: false });
-    }
-  }
-};
+  };
 
   const handleClose = () => {
     dispatch({ type: 'SHOW_WIZARD', payload: false });
   };
 
+  // FUNÇÃO CORRIGIDA: toggleWorkoutDay com logging
   const toggleWorkoutDay = (day: string) => {
-    setFormData(prev => ({
-      ...prev,
-      workoutDays: prev.workoutDays.includes(day)
+    console.log(`🔄 Toggling day: ${day}`);
+    console.log('📅 Current workoutDays before toggle:', formData.workoutDays);
+    
+    setFormData(prev => {
+      const newWorkoutDays = prev.workoutDays.includes(day)
         ? prev.workoutDays.filter(d => d !== day)
-        : [...prev.workoutDays, day]
-    }));
+        : [...prev.workoutDays, day];
+      
+      console.log('📅 New workoutDays after toggle:', newWorkoutDays);
+      
+      return {
+        ...prev,
+        workoutDays: newWorkoutDays
+      };
+    });
   };
 
   const formatNumber = (value: string) => value.replace(/[^\d,]/g, "").replace(/(\d+)(,?)(\d{0,2}).*/, "$1$2$3");
@@ -608,6 +681,20 @@ const WelcomeWizard = () => {
                 <label className="block text-sm font-semibold text-gray-300 mb-4">
                   Dias disponíveis para treinar <span className="text-red-400">*</span>
                 </label>
+                {/* ADICIONADO: Display dos dias selecionados em tempo real */}
+                {formData.workoutDays.length > 0 && (
+                  <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <p className="text-sm text-blue-300">
+                      <strong>Selecionados ({formData.workoutDays.length}):</strong> {formData.workoutDays.map(day => {
+                        const dayNames: { [key: string]: string } = {
+                          'monday': 'Segunda', 'tuesday': 'Terça', 'wednesday': 'Quarta',
+                          'thursday': 'Quinta', 'friday': 'Sexta', 'saturday': 'Sábado', 'sunday': 'Domingo'
+                        };
+                        return dayNames[day] || day;
+                      }).join(', ')}
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[
                     { key: 'monday', label: 'SEG', full: 'Segunda' },
@@ -710,6 +797,23 @@ const WelcomeWizard = () => {
                   <span className="text-gray-400 font-medium">Treinos/semana:</span>
                   <span className="text-white font-semibold">{formData.workoutDays.length} dias</span>
                 </div>
+                {/* ADICIONADO: Mostrar os dias selecionados na confirmação */}
+                <div className="md:col-span-2 py-2 border-b border-gray-700/50">
+                  <span className="text-gray-400 font-medium">Dias selecionados:</span>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {formData.workoutDays.map(day => {
+                      const dayNames: { [key: string]: string } = {
+                        'monday': 'Segunda', 'tuesday': 'Terça', 'wednesday': 'Quarta',
+                        'thursday': 'Quinta', 'friday': 'Sexta', 'saturday': 'Sábado', 'sunday': 'Domingo'
+                      };
+                      return (
+                        <span key={day} className="px-2 py-1 bg-orange-500/20 text-orange-400 rounded-lg text-xs font-semibold">
+                          {dayNames[day] || day}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
                 {bmi && (
                   <div className="flex justify-between items-center py-2 border-b border-gray-700/50 md:col-span-2">
                     <span className="text-gray-400 font-medium">IMC:</span>
@@ -728,7 +832,7 @@ const WelcomeWizard = () => {
               </div>
               <p className="text-emerald-300 text-sm leading-relaxed">
                 Seu perfil personalizado será criado e você receberá um plano de treino e dieta adequado aos seus objetivos.
-                Vamos juntos nessa jornada fitness! 💪
+                Vamos juntos nessa jornada fitness!
               </p>
             </div>
           </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Dumbbell, Target, Video, Check, RefreshCw, Award, BarChart2, Zap,
-    ChevronDown, Lock, Moon, Calendar
+    ChevronDown, Lock, Moon, Stars, Calendar
 } from 'lucide-react';
 
 // Imports reais dos seus componentes e contexto
@@ -269,20 +269,42 @@ export const WorkoutTab = () => {
                         // é o dia agendado para hoje?
                         const isCurrentDay = !!scheduledDate && scheduledDate.getTime() === todayStart.getTime();
 
-                        // Lógica de cores do card
-                        let cardClasses = `p-6 rounded-2xl border transition-all duration-300 relative cursor-pointer`;
-
-                        if (day.concluido) {
-                            cardClasses += ' bg-green-500/10 border-green-500/30 hover:border-green-500';
-                        } else if (hasWorkout && isPastScheduledDate) {
-                            // Dias de treino não concluídos que já passaram (a partir da data de geração) ficam vermelhos
-                            cardClasses += ' bg-red-500/10 border-red-500/30 hover:border-red-500';
-                        } else if (hasWorkout) {
-                            // Dias de treino futuros ou agendados para hoje ficam neutros/azuis
-                            cardClasses += ' bg-white dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 hover:border-blue-500';
+                        // Determinar o tipo do card baseado nas condições (usando a mesma lógica do código 1)
+                        let cardType = 'neutral'; // padrão
+                        
+                        if (!hasWorkout) {
+                            // Dia de descanso - sempre neutro/relaxante
+                            cardType = 'rest';
+                        } else if (day.concluido) {
+                            // Treino concluído - verde
+                            cardType = 'completed';
+                        } else if (isPastScheduledDate) {
+                            // Treino não concluído no passado - vermelho
+                            cardType = 'overdue';
                         } else {
-                            // Dias de descanso têm cores neutras e hover sutil
-                            cardClasses += ' bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 hover:border-gray-400';
+                            // Treino futuro - azul/neutro
+                            cardType = 'upcoming';
+                        }
+
+                        // Classes base do card (aplicando a estilização do código 1)
+                        let cardClasses = `p-6 rounded-2xl border transition-all duration-300 relative overflow-hidden cursor-pointer`;
+
+                        // Aplicar estilos baseados no tipo (copiado do código 1)
+                        switch (cardType) {
+                            case 'rest':
+                                cardClasses += ' bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-200/50 dark:border-indigo-700/30 hover:border-indigo-300 dark:hover:border-indigo-600';
+                                break;
+                            case 'completed':
+                                cardClasses += ' bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200/50 dark:border-green-700/30';
+                                break;
+                            case 'overdue':
+                                cardClasses += ' bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 border-red-200/50 dark:border-red-700/30 hover:border-red-400 dark:hover:border-red-600';
+                                break;
+                            case 'upcoming':
+                                cardClasses += ' bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-blue-200/50 dark:border-blue-700/30 hover:border-blue-400 dark:hover:border-blue-600';
+                                break;
+                            default:
+                                cardClasses += ' bg-white dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 hover:border-gray-400';
                         }
 
                         // Adicionar indicador de dia atual
@@ -293,12 +315,33 @@ export const WorkoutTab = () => {
                         const DayIcon = getDayIcon(day);
 
                         return (
-                            <motion.div
+                            <div
                                 key={day.id}
-                                whileHover={{ y: -5, scale: 1.02 }}
                                 className={cardClasses}
                                 onClick={() => handleDayClick(day)}
+                                style={{
+                                    transform: 'translateY(0)',
+                                    transition: 'all 0.3s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-5px) scale(1.02)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                                }}
                             >
+                                {/* Background decorativo para dias de descanso (copiado do código 1) */}
+                                {!hasWorkout && (
+                                    <div className="absolute inset-0 opacity-5 dark:opacity-10">
+                                        <div className="absolute top-4 right-4">
+                                            <Stars size={32} className="text-indigo-600" />
+                                        </div>
+                                        <div className="absolute bottom-4 left-4">
+                                            <Moon size={24} className="text-indigo-500" />
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Indicador de dia atual */}
                                 {isCurrentDay && (
                                     <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
@@ -318,36 +361,88 @@ export const WorkoutTab = () => {
                                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Agendado em: {scheduledDate.toLocaleDateString()}</p>
                                         )}
                                     </div>
-                                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                                        day.concluido
-                                            ? 'bg-green-500/20 text-green-600 dark:text-green-400'
-                                            : hasWorkout
-                                                ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                                                : 'bg-gray-500/10 text-gray-600 dark:text-gray-400'
-                                    }`}>
-                                        <DayIcon size={24} />
-                                    </div>
-                                    {day.concluido && <Check className="absolute top-4 right-4 text-green-600 dark:text-green-400" size={20} />}
+                                    
+                                    {/* Ícone baseado no tipo do dia (usando a estilização do código 1) */}
+                                    {hasWorkout ? (
+                                        <div 
+                                            className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-300 ${
+                                                day.concluido 
+                                                    ? 'bg-green-500/20 text-green-600 dark:text-green-400' 
+                                                    : cardType === 'overdue'
+                                                        ? 'bg-red-500/20 text-red-600 dark:text-red-400'
+                                                        : 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                                            }`}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.transform = 'rotate(-10deg)';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.transform = 'rotate(0deg)';
+                                            }}
+                                        >
+                                            <Dumbbell size={24} />
+                                        </div>
+                                    ) : (
+                                        <div 
+                                            className="w-12 h-12 rounded-lg flex items-center justify-center bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+                                            style={{
+                                                animation: 'gentle-float 4s ease-in-out infinite'
+                                            }}
+                                        >
+                                            <Moon size={24} />
+                                        </div>
+                                    )}
+                                    
+                                    {/* Indicadores de status (copiado do código 1) */}
+                                    {day.concluido && (
+                                        <div
+                                            className="absolute top-4 right-4 transition-all duration-300"
+                                            style={{
+                                                animation: 'check-appear 0.3s ease-out'
+                                            }}
+                                        >
+                                            <Check className="text-green-600 dark:text-green-400" size={20} />
+                                        </div>
+                                    )}
                                     {!isCurrentDay && hasWorkout && !day.concluido && (
                                         <Lock className="absolute top-4 right-4 text-gray-500 dark:text-gray-400" size={20} />
                                     )}
                                 </div>
 
+                                {/* Conteúdo do card (aplicando estilização do código 1 para dias de descanso) */}
                                 {hasWorkout ? (
                                     <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-500 mt-6">
                                         <span><BarChart2 size={14} className="inline mr-1" /> {day.exercicios_treino?.filter(e => e.concluido).length || 0}/{day.exercicios_treino?.length || 0} feitos</span>
                                     </div>
                                 ) : (
-                                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mt-6">
-                                        <Moon size={14} />
-                                        <span>Dia de descanso e recuperação</span>
+                                    <div className="mt-6">
+                                        <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mb-2">
+                                            <Stars size={16} />
+                                            <span className="font-medium">Dia de Descanso</span>
+                                        </div>
+                                        <p className="text-gray-500 dark:text-gray-400 text-sm">
+                                            Momento para recuperação e regeneração muscular.
+                                        </p>
                                     </div>
                                 )}
-                            </motion.div>
+                            </div>
                         );
                     })}
                 </section>
             </main>
+
+            {/* CSS para animações (copiado do código 1) */}
+            <style jsx>{`
+                @keyframes gentle-float {
+                    0%, 100% { transform: rotate(0deg) scale(1); }
+                    25% { transform: rotate(5deg) scale(1.05); }
+                    75% { transform: rotate(-5deg) scale(1.05); }
+                }
+                
+                @keyframes check-appear {
+                    0% { transform: scale(0); opacity: 0; }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+            `}</style>
 
             {/* Footer */}
             <footer className="mt-20 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50">
@@ -477,7 +572,13 @@ export const WorkoutTab = () => {
             <button
                 onClick={handleResetWeek}
                 title="Resetar Semana"
-                className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-40"
+                className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-full flex items-center justify-center shadow-lg z-40 transition-all duration-200 hover:scale-110 active:scale-95"
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.1) rotate(180deg)';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+                }}
             >
                 <RefreshCw size={24} />
             </button>

@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dumbbell, Target, Video, Check, RefreshCw, Award, BarChart2, Zap, ChevronDown, Lock, Moon, Calendar } from 'lucide-react';
+import {
+    Dumbbell, Target, Video, Check, RefreshCw, Award, BarChart2, Zap,
+    ChevronDown, Lock, Moon, Calendar
+} from 'lucide-react';
 
 // Imports reais dos seus componentes e contexto
 import { useApp } from '../../context/AppContext';
@@ -25,10 +28,12 @@ interface Exercise {
 interface WorkoutDay {
     id: string;
     nome: string;
-    dia_semana: string;
+    dia_semana: string; // ex: 'segunda', 'terca', ...
     objetivo: string | null;
     concluido: boolean;
     exercicios_treino: Exercise[];
+    // opcional: data de geração por dia (caso seu backend forneça por dia)
+    generated_at?: string | null;
 }
 
 // Mock simples para a função de tradução, substitua se tiver uma real
@@ -50,10 +55,10 @@ const getNormalizedDayName = (date?: Date): string => {
 
 // Função para verificar se é dia de descanso
 const isRestDay = (day: WorkoutDay): boolean => {
-    return !day.exercicios_treino || 
-           day.exercicios_treino.length === 0 || 
-           day.nome.toLowerCase().includes('descanso') ||
-           day.objetivo === 'descanso';
+    return !day.exercicios_treino ||
+        day.exercicios_treino.length === 0 ||
+        day.nome.toLowerCase().includes('descanso') ||
+        day.objetivo === 'descanso';
 };
 
 // Função para obter o ícone apropriado
@@ -66,7 +71,7 @@ const getDayIcon = (day: WorkoutDay): React.ElementType => {
 
 export const WorkoutTab = () => {
     const { state, markExerciseAsCompleted, resetWeekProgress } = useApp();
-    
+
     const [selectedDay, setSelectedDay] = useState<WorkoutDay | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [openVideoId, setOpenVideoId] = useState<string | null>(null);
@@ -76,9 +81,60 @@ export const WorkoutTab = () => {
     const workoutPlan = state.workoutPlan as WorkoutDay[] | null;
     const isLoading = state.loading;
 
-    // Obtém o dia atual e a ordem dos dias
-    const currentDayName = getNormalizedDayName();
+    // Ordered days mapping (domingo = 0 ... sabado = 6)
     const orderedDays = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+
+    // Data de hoje (início do dia)
+    const todayStart = useMemo(() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }, []);
+
+    // Determina a data de geração do plano:
+    // Prioriza state.workoutGeneratedAt -> fallback para workoutPlan[0].generated_at -> null
+    const generationDateStr: string | null | undefined = (state as any).workoutGeneratedAt || workoutPlan?.[0]?.generated_at || null;
+    const generationDate: Date | null = useMemo(() => {
+        if (!generationDateStr) return null;
+        const d = new Date(generationDateStr);
+        if (isNaN(d.getTime())) return null;
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }, [generationDateStr]);
+
+    // Helper: converte nome do dia ('segunda') para índice 0..6 (domingo..sabado)
+    const weekdayNameToIndex = (name: string) => {
+        if (!name) return -1;
+        const n = name.toLowerCase();
+        return orderedDays.indexOf(n);
+    };
+
+    // Helper: dado um startDate (data) e um targetWeekdayIndex (0..6), retorna a primeira ocorrência
+    // desse weekday **a partir** do startDate (inclui startDate caso coincida).
+    const getFirstOccurrenceDate = (startDate: Date, targetWeekdayIndex: number): Date => {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const startIndex = start.getDay(); // 0..6 (domingo..sabado)
+        const diff = (targetWeekdayIndex - startIndex + 7) % 7;
+        const result = new Date(start);
+        result.setDate(start.getDate() + diff);
+        result.setHours(0, 0, 0, 0);
+        return result;
+    };
+
+    // Se não houver generationDate, usamos a semana atual como base (a partir de hoje)
+    const baseDateForScheduling = generationDate || todayStart;
+
+    // Helper: dada uma WorkoutDay retorna a Data agendada (a primeira ocorrência a partir da baseDateForScheduling)
+    const getScheduledDateForDay = (day: WorkoutDay | null | undefined): Date | null => {
+        if (!day) return null;
+        const idx = weekdayNameToIndex(day.dia_semana || '');
+        if (idx < 0) return null;
+        return getFirstOccurrenceDate(baseDateForScheduling, idx);
+    };
+
+    // Obtém o dia atual em nome normalizado (para compatibilidade com seu código existente)
+    const currentDayName = getNormalizedDayName();
     const currentDayIndex = orderedDays.indexOf(currentDayName);
 
     // Sincroniza o estado local do modal com o estado global
@@ -100,8 +156,10 @@ export const WorkoutTab = () => {
     const handleCompleteExercise = async (exerciseId: string) => {
         if (!selectedDay) return;
 
-        if (selectedDay.dia_semana !== currentDayName) {
-            alert('Você só pode concluir exercícios do dia atual.');
+        // botão só conclui exercícios se o dia selecionado for o dia agendado para hoje
+        const scheduledForSelected = getScheduledDateForDay(selectedDay);
+        if (!scheduledForSelected || scheduledForSelected.getTime() !== todayStart.getTime()) {
+            alert('Você só pode concluir exercícios do dia agendado para hoje.');
             return;
         }
 
@@ -117,14 +175,14 @@ export const WorkoutTab = () => {
             setIsCompletingExercise(null);
         }
     };
-    
+
     const handleResetWeek = async () => {
         if (window.confirm('Tem certeza que deseja resetar o progresso da semana?')) {
             try {
                 console.log('Iniciando reset da semana...');
                 await resetWeekProgress();
                 console.log('Reset concluído com sucesso');
-                
+
                 if (isModalOpen) {
                     setIsModalOpen(false);
                     setSelectedDay(null);
@@ -168,8 +226,11 @@ export const WorkoutTab = () => {
     const totalWorkoutDays = daysWithWorkout.length;
     const totalExercises = workoutPlan.reduce((acc, day) => acc + (day.exercicios_treino?.length || 0), 0);
     const totalCompletedExercises = workoutPlan.reduce((acc, day) => acc + (day.exercicios_treino?.filter(ex => ex.concluido).length || 0), 0);
-    
+
     const iconMap: { [key: string]: React.ElementType } = { Dumbbell, Target, Zap, Award, Moon };
+
+    // data agendada para o day selecionado (usado no modal para habilitar botão)
+    const scheduledDateForSelectedDay = useMemo(() => getScheduledDateForDay(selectedDay || undefined), [selectedDay, generationDate, workoutPlan]);
 
     return (
         <div className="min-h-screen font-sans bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-200 transition-colors duration-500">
@@ -198,21 +259,26 @@ export const WorkoutTab = () => {
                 <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {workoutPlan.map((day) => {
                         const hasWorkout = !isRestDay(day);
-                        const dayIndex = orderedDays.indexOf(day.dia_semana);
-                        const isPastOrCurrentDay = dayIndex <= currentDayIndex;
-                        const isCurrentDay = dayIndex === currentDayIndex;
-                        const DayIcon = getDayIcon(day);
+
+                        // Data agendada para este dia (a primeira ocorrência a partir da data de geração / base)
+                        const scheduledDate = getScheduledDateForDay(day);
+
+                        // se scheduledDate existe e é antes de hoje => dia passado (possível "perdido")
+                        const isPastScheduledDate = !!scheduledDate && scheduledDate.getTime() < todayStart.getTime();
+
+                        // é o dia agendado para hoje?
+                        const isCurrentDay = !!scheduledDate && scheduledDate.getTime() === todayStart.getTime();
 
                         // Lógica de cores do card
                         let cardClasses = `p-6 rounded-2xl border transition-all duration-300 relative cursor-pointer`;
 
                         if (day.concluido) {
                             cardClasses += ' bg-green-500/10 border-green-500/30 hover:border-green-500';
-                        } else if (hasWorkout && isPastOrCurrentDay) {
-                            // Dias de treino não concluídos passados ou atuais ficam vermelhos
+                        } else if (hasWorkout && isPastScheduledDate) {
+                            // Dias de treino não concluídos que já passaram (a partir da data de geração) ficam vermelhos
                             cardClasses += ' bg-red-500/10 border-red-500/30 hover:border-red-500';
                         } else if (hasWorkout) {
-                            // Dias de treino futuros ficam neutros
+                            // Dias de treino futuros ou agendados para hoje ficam neutros/azuis
                             cardClasses += ' bg-white dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 hover:border-blue-500';
                         } else {
                             // Dias de descanso têm cores neutras e hover sutil
@@ -223,6 +289,8 @@ export const WorkoutTab = () => {
                         if (isCurrentDay) {
                             cardClasses += ' ring-2 ring-blue-500 ring-opacity-50';
                         }
+
+                        const DayIcon = getDayIcon(day);
 
                         return (
                             <motion.div
@@ -245,11 +313,15 @@ export const WorkoutTab = () => {
                                             {isCurrentDay && <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">HOJE</span>}
                                         </h3>
                                         <p className="text-gray-600 dark:text-gray-400">{day.nome}</p>
+                                        {/* Mostrar data agendada (opcional) */}
+                                        {scheduledDate && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Agendado em: {scheduledDate.toLocaleDateString()}</p>
+                                        )}
                                     </div>
                                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                                        day.concluido 
-                                            ? 'bg-green-500/20 text-green-600 dark:text-green-400' 
-                                            : hasWorkout 
+                                        day.concluido
+                                            ? 'bg-green-500/20 text-green-600 dark:text-green-400'
+                                            : hasWorkout
                                                 ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
                                                 : 'bg-gray-500/10 text-gray-600 dark:text-gray-400'
                                     }`}>
@@ -260,7 +332,7 @@ export const WorkoutTab = () => {
                                         <Lock className="absolute top-4 right-4 text-gray-500 dark:text-gray-400" size={20} />
                                     )}
                                 </div>
-                                
+
                                 {hasWorkout ? (
                                     <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-500 mt-6">
                                         <span><BarChart2 size={14} className="inline mr-1" /> {day.exercicios_treino?.filter(e => e.concluido).length || 0}/{day.exercicios_treino?.length || 0} feitos</span>
@@ -328,7 +400,7 @@ export const WorkoutTab = () => {
                                 <Moon size={48} className="mx-auto text-gray-400 dark:text-gray-500 mb-4" />
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Dia de Descanso</h3>
                                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                                    Este é um dia importante para a recuperação dos seus músculos. 
+                                    Este é um dia importante para a recuperação dos seus músculos.
                                     Aproveite para descansar, se hidratar bem e ter uma boa noite de sono.
                                 </p>
                                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-left">
@@ -344,60 +416,65 @@ export const WorkoutTab = () => {
                             </div>
                         ) : (
                             // Conteúdo para dias de treino
-                            selectedDay.exercicios_treino.map((exercise: any) => (
-                                <Card key={exercise.id} className={`p-4 transition-all ${exercise.concluido ? 'border-green-500/50 bg-green-500/5' : 'bg-gray-100 dark:bg-gray-800'}`}>
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1 cursor-pointer" onClick={() => toggleVideo(exercise.id)}>
-                                            <div className="flex items-center justify-between">
-                                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{exercise.nome}</h3>
-                                                <ChevronDown className={`text-gray-500 dark:text-gray-400 transition-transform ${openVideoId === exercise.id ? 'rotate-180' : ''}`} />
+                            selectedDay.exercicios_treino.map((exercise: any) => {
+                                const scheduledForSelected = scheduledDateForSelectedDay;
+                                const canComplete = !!scheduledForSelected && scheduledForSelected.getTime() === todayStart.getTime();
+
+                                return (
+                                    <Card key={exercise.id} className={`p-4 transition-all ${exercise.concluido ? 'border-green-500/50 bg-green-500/5' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1 cursor-pointer" onClick={() => toggleVideo(exercise.id)}>
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{exercise.nome}</h3>
+                                                    <ChevronDown className={`text-gray-500 dark:text-gray-400 transition-transform ${openVideoId === exercise.id ? 'rotate-180' : ''}`} />
+                                                </div>
+                                                <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                                    <span>{exercise.series} {t('sets')}</span>
+                                                    <span>{exercise.repeticoes} {t('reps')}</span>
+                                                    {exercise.descanso && <span>Descanso: {exercise.descanso}</span>}
+                                                </div>
+                                                {exercise.observacao && (
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{exercise.observacao}</p>
+                                                )}
                                             </div>
-                                            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                                <span>{exercise.series} {t('sets')}</span>
-                                                <span>{exercise.repeticoes} {t('reps')}</span>
-                                                {exercise.descanso && <span>Descanso: {exercise.descanso}</span>}
-                                            </div>
-                                            {exercise.observacao && (
-                                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{exercise.observacao}</p>
-                                            )}
-                                        </div>
-                                        <Button
-                                            onClick={() => handleCompleteExercise(exercise.id)}
-                                            disabled={exercise.concluido || isCompletingExercise === exercise.id || selectedDay.dia_semana !== currentDayName}
-                                            icon={exercise.concluido ? Check : undefined}
-                                            className={`ml-4 ${exercise.concluido 
-                                                ? 'bg-green-500/20 text-green-600 dark:text-green-400 cursor-default' 
-                                                : 'bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50'}`}
-                                        >
-                                            {isCompletingExercise === exercise.id 
-                                                ? 'Salvando...' 
-                                                : exercise.concluido 
-                                                    ? t('completed') 
-                                                    : t('markAsCompleted')
-                                            }
-                                        </Button>
-                                    </div>
-                                    <AnimatePresence>
-                                        {openVideoId === exercise.id && (
-                                            <motion.div
-                                                initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                                                animate={{ height: 'auto', opacity: 1, marginTop: '16px' }}
-                                                exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                                                style={{ overflow: 'hidden' }}
+                                            <Button
+                                                onClick={() => handleCompleteExercise(exercise.id)}
+                                                disabled={exercise.concluido || isCompletingExercise === exercise.id || !canComplete}
+                                                icon={exercise.concluido ? Check : undefined}
+                                                className={`ml-4 ${exercise.concluido
+                                                    ? 'bg-green-500/20 text-green-600 dark:text-green-400 cursor-default'
+                                                    : 'bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50'}`}
                                             >
-                                                <VideoPlayer url={exercise.video_url} title={exercise.nome} />
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </Card>
-                            ))
+                                                {isCompletingExercise === exercise.id
+                                                    ? 'Salvando...'
+                                                    : exercise.concluido
+                                                        ? t('completed')
+                                                        : t('markAsCompleted')
+                                                }
+                                            </Button>
+                                        </div>
+                                        <AnimatePresence>
+                                            {openVideoId === exercise.id && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1, marginTop: '16px' }}
+                                                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                                                    style={{ overflow: 'hidden' }}
+                                                >
+                                                    <VideoPlayer url={exercise.video_url} title={exercise.nome} />
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </Card>
+                                );
+                            })
                         )}
                     </div>
                 )}
             </Modal>
 
             {/* Botão de Reset */}
-            <button 
+            <button
                 onClick={handleResetWeek}
                 title="Resetar Semana"
                 className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-40"
